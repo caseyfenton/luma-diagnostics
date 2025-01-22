@@ -10,6 +10,7 @@ test_requirements = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pillow>=8.3.1",  # For image validation
+    "numpy>=1.21.0",  # For test image generation
 ]
 
 setup(

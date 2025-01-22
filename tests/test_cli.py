@@ -3,8 +3,10 @@
 import unittest
 import os
 import tempfile
-from unittest.mock import patch
-from luma_diagnostics.cli import main  # We'll create this next
+from unittest.mock import patch, MagicMock
+from luma_diagnostics.cli import main
+from PIL import Image
+import numpy as np
 
 class TestLumaCLI(unittest.TestCase):
     """Test suite for LUMA CLI functionality."""
@@ -15,9 +17,9 @@ class TestLumaCLI(unittest.TestCase):
         self.valid_image = os.path.join(self.temp_dir, "valid.jpg")
         self.invalid_image = os.path.join(self.temp_dir, "invalid.jpg")
         
-        # Create a valid test image
-        with open(self.valid_image, 'wb') as f:
-            f.write(b'Valid JPEG\xff\xd8\xff\xe0')
+        # Create a valid test image using PIL
+        img = Image.fromarray(np.zeros((100, 100, 3), dtype=np.uint8))
+        img.save(self.valid_image, format='JPEG')
         
         # Create an invalid test image
         with open(self.invalid_image, 'wb') as f:
@@ -29,63 +31,63 @@ class TestLumaCLI(unittest.TestCase):
         os.remove(self.invalid_image)
         os.rmdir(self.temp_dir)
     
-    @patch('sys.argv')
-    def test_cli_no_args(self, mock_argv):
+    def test_cli_no_args(self):
         """Test CLI with no arguments."""
-        mock_argv.return_value = ['luma-diagnostics']
-        with self.assertRaises(SystemExit) as cm:
+        test_args = ['luma-diagnostics']
+        with patch('sys.argv', test_args), \
+             patch('builtins.print') as mock_print, \
+             self.assertRaises(SystemExit) as cm:
             main()
         self.assertEqual(cm.exception.code, 2)
     
-    @patch('sys.argv')
-    def test_cli_help(self, mock_argv):
+    def test_cli_help(self):
         """Test CLI help command."""
-        mock_argv.return_value = ['luma-diagnostics', '--help']
-        with self.assertRaises(SystemExit) as cm:
+        test_args = ['luma-diagnostics', '--help']
+        with patch('sys.argv', test_args), \
+             patch('builtins.print') as mock_print, \
+             self.assertRaises(SystemExit) as cm:
             main()
         self.assertEqual(cm.exception.code, 0)
     
-    @patch('sys.argv')
-    @patch('luma_diagnostics.api_tests.LumaAPITester')
-    def test_cli_valid_image(self, mock_api, mock_argv):
+    def test_cli_valid_image(self):
         """Test CLI with valid image."""
-        mock_argv.return_value = ['luma-diagnostics', '--image', self.valid_image]
-        mock_api.return_value.test_image_reference.return_value = {
-            "status": "success",
-            "details": {"id": "test_id"}
-        }
-        
-        with patch('builtins.print') as mock_print:
-            main()
-            mock_print.assert_called_with(unittest.mock.ANY)
+        test_args = ['luma-diagnostics', '--test', '--image', self.valid_image, '--api-key', 'luma_test_key_123456789012345678901234567890']
+        with patch('sys.argv', test_args), \
+             patch('luma_diagnostics.api_tests.LumaAPITester') as mock_api, \
+             patch('builtins.print') as mock_print:
+            
+            # Configure mock
+            mock_instance = mock_api.return_value
+            mock_instance.test_text_to_image.return_value = {
+                "status": "success",
+                "details": {"id": "test_id"}
+            }
+            mock_instance.test_image_reference.return_value = {
+                "status": "success",
+                "details": {"id": "test_id"}
+            }
+            
+            with self.assertRaises(SystemExit) as cm:
+                main()
+            self.assertEqual(cm.exception.code, 0)
     
-    @patch('sys.argv')
-    @patch('luma_diagnostics.api_tests.LumaAPITester')
-    def test_cli_invalid_image(self, mock_api, mock_argv):
+    def test_cli_invalid_image(self):
         """Test CLI with invalid image."""
-        mock_argv.return_value = ['luma-diagnostics', '--image', self.invalid_image]
-        mock_api.return_value.test_image_reference.return_value = {
-            "status": "error",
-            "details": {"error": "Invalid image format"}
-        }
-        
-        with patch('builtins.print') as mock_print:
+        test_args = ['luma-diagnostics', '--test', '--image', self.invalid_image, '--api-key', 'luma_test_key_123456789012345678901234567890']
+        with patch('sys.argv', test_args), \
+             patch('builtins.print') as mock_print, \
+             self.assertRaises(SystemExit) as cm:
             main()
-            mock_print.assert_called_with(unittest.mock.ANY)
+        self.assertEqual(cm.exception.code, 1)
     
-    @patch('sys.argv')
-    @patch('luma_diagnostics.api_tests.LumaAPITester')
-    def test_cli_invalid_api_key(self, mock_api, mock_argv):
+    def test_cli_invalid_api_key(self):
         """Test CLI with invalid API key."""
-        mock_argv.return_value = ['luma-diagnostics', '--key', 'invalid_key']
-        mock_api.return_value.test_text_to_image.return_value = {
-            "status": "error",
-            "details": {"error": "Invalid API key"}
-        }
-        
-        with patch('builtins.print') as mock_print:
+        test_args = ['luma-diagnostics', '--test', '--api-key', 'invalid_key']
+        with patch('sys.argv', test_args), \
+             patch('builtins.print') as mock_print, \
+             self.assertRaises(SystemExit) as cm:
             main()
-            mock_print.assert_called_with(unittest.mock.ANY)
+        self.assertEqual(cm.exception.code, 1)
 
 if __name__ == '__main__':
     unittest.main()
