@@ -9,11 +9,12 @@ from pathlib import Path
 import questionary
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 from rich import print as rprint
 from . import diagnostics
 from . import utils
 from . import settings
+import datetime
 
 console = Console()
 
@@ -355,156 +356,139 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
     SETTINGS.set_last_params(params)
     return params
 
-def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]):
-    """Run the selected tests and show progress."""
-    case_id = f"wizard_{int(time.time())}"
-    config = {
-        "TEST_IMAGE_URL": image_url,
-        "LUMA_API_KEY": api_key
-    }
-    
-    if test_type != "Basic Image Test":
-        config.update(params)
-    
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True
-    ) as progress:
-        task = progress.add_task(description="Initializing...", total=None)
+def create_case(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any], test_results: Dict[str, Any]):
+    """Create a case file with test results and additional information."""
+    try:
+        # Ask if user wants to create a case
+        if not questionary.confirm("Would you like to create a case with these test results?").ask():
+            return
         
-        try:
-            # Define test sequence
-            test_sequence = [
-                ("Public Access", lambda: diagnostics.tests.test_public_access(image_url)),
-                ("Certificate Validation", lambda: diagnostics.tests.test_cert_validation(image_url)),
-                ("Redirect Check", lambda: diagnostics.tests.test_redirect(image_url)),
-                ("Headers and Content", lambda: diagnostics.test_image_headers(image_url, timeout=30)),
-                ("Image Validity", lambda: diagnostics.test_image_validity(image_url, timeout=30))
-            ]
+        # Get case information
+        questions = [
+            {
+                "type": "text",
+                "name": "title",
+                "message": "Enter a title for this case:",
+                "validate": lambda x: len(x) > 0
+            },
+            {
+                "type": "text",
+                "name": "customer",
+                "message": "Customer name (optional):",
+            },
+            {
+                "type": "editor",
+                "name": "description",
+                "message": "Enter a description of the issue or technical context:",
+                "validate": lambda x: len(x) > 0
+            },
+            {
+                "type": "text",
+                "name": "priority",
+                "message": "Priority level (P0-P3):",
+                "default": "P2",
+                "validate": lambda x: x in ["P0", "P1", "P2", "P3"]
+            }
+        ]
+        
+        case_info = questionary.prompt(questions)
+        if not case_info:  # User cancelled
+            return
+        
+        # Create case directory
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        case_id = f"case_{timestamp}"
+        case_dir = os.path.join("cases", "active", case_id)
+        os.makedirs(case_dir, exist_ok=True)
+        
+        # Create case markdown file
+        case_file = os.path.join(case_dir, f"{case_id.upper()}.md")
+        with open(case_file, "w") as f:
+            f.write(f"# {case_info['title']}\n\n")
+            f.write("## Case Information\n\n")
+            f.write(f"- **Case ID**: {case_id}\n")
+            f.write(f"- **Created**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"- **Priority**: {case_info['priority']}\n")
+            if case_info['customer']:
+                f.write(f"- **Customer**: {case_info['customer']}\n")
+            f.write("\n## Description\n\n")
+            f.write(case_info['description'])
+            f.write("\n\n## Test Configuration\n\n")
+            f.write(f"- **Image URL**: {image_url}\n")
+            f.write(f"- **Test Type**: {test_type}\n")
+            if params:
+                f.write("- **Test Parameters**:\n")
+                for key, value in params.items():
+                    f.write(f"  - {key}: {value}\n")
             
-            results = []
-            
-            # Run each test with progress updates
-            for test_name, test_func in test_sequence:
-                # Clear previous progress
-                progress.update(task, description=f"Running {test_name} test...")
-                
-                try:
-                    result = test_func()
-                    results.append(result)
-                    
-                    # Show immediate feedback and clear progress
-                    progress.stop()
-                    if result["status"] == "failed":
-                        console.print(f"\n[red]✗ {test_name} failed: {result['details'].get('error', 'Unknown error')}[/red]")
-                        
-                        # Handle timeout specifically
-                        if "timeout" in str(result.get("details", {}).get("error", "")).lower():
-                            if questionary.confirm("Would you like to retry this test with a longer timeout?").ask():
-                                progress.start()
-                                progress.update(task, description=f"Retrying {test_name} with longer timeout...")
-                                
-                                # Retry with longer timeout
-                                if test_name in ["Headers and Content", "Image Validity"]:
-                                    result = test_func()
-                                    # Replace the failed result with the retry result
-                                    results[-1] = result
-                                    progress.stop()
-                                    
-                                    if result["status"] == "completed":
-                                        console.print(f"[green]✓ {test_name} completed successfully on retry[/green]")
-                                    else:
-                                        console.print(f"[red]✗ {test_name} failed again: {result['details'].get('error', 'Unknown error')}[/red]")
-                    else:
-                        console.print(f"[green]✓ {test_name} completed successfully[/green]")
-                        
-                        # Show test details immediately
-                        if "details" in result:
-                            for k, v in result["details"].items():
-                                if isinstance(v, dict):
-                                    console.print(f"  {k}:")
-                                    for sub_k, sub_v in v.items():
-                                        console.print(f"    {sub_k}: {sub_v}")
-                                else:
-                                    console.print(f"  {k}: {v}")
-                
-                except Exception as e:
-                    progress.stop()
-                    console.print(f"\n[red]✗ Error in {test_name}: {str(e)}[/red]")
-                    results.append({
-                        "test_name": test_name,
-                        "status": "failed",
-                        "details": {"error": str(e)}
-                    })
-                
-                # Add a newline between tests
-                console.print()
-                
-                # Small pause between tests for readability
-                time.sleep(0.5)
-                progress.start()
-            
-            progress.stop()
-            console.print("\n[bold green]All tests completed![/bold green]")
-            
-            # Show final results
-            clear_screen()
-            console.print("\n[bold]Summary of results:[/bold]")
-            console.print("=" * 40)
-            
-            for result in results:
-                console.print(f"\n[bold]{result['test_name']}[/bold]")
-                console.print("-" * 40)
-                
-                if result["status"] == "completed":
-                    console.print("[green]✓ Passed[/green]")
-                    if "details" in result:
-                        for k, v in result["details"].items():
-                            if isinstance(v, dict):
-                                console.print(f"{k}:")
-                                for sub_k, sub_v in v.items():
-                                    console.print(f"  {sub_k}: {sub_v}")
-                            else:
-                                console.print(f"{k}: {v}")
+            f.write("\n## Test Results\n\n")
+            for test_name, result in test_results.items():
+                f.write(f"### {test_name}\n\n")
+                if isinstance(result, dict):
+                    for key, value in result.items():
+                        f.write(f"- **{key}**: {value}\n")
                 else:
-                    console.print(f"[red]✗ Failed[/red]")
-                    if "details" in result and "error" in result["details"]:
-                        error_msg = str(result["details"]["error"])
-                        console.print(f"[red]Error: {error_msg}[/red]")
-                        
-                        # Show suggestions based on error type
-                        if "timeout" in error_msg.lower():
-                            console.print("\n[yellow]Suggestion: The server might be slow. Try:[/yellow]")
-                            console.print("1. Check your internet connection")
-                            console.print("2. Try a different image URL")
-                            console.print("3. Run the test again with a longer timeout")
-                        elif "certificate" in error_msg.lower():
-                            console.print("\n[yellow]Suggestion: SSL/Certificate issue. Try:[/yellow]")
-                            console.print("1. Use an HTTPS URL")
-                            console.print("2. Check if the website's SSL certificate is valid")
-                        elif "dns" in error_msg.lower():
-                            console.print("\n[yellow]Suggestion: DNS resolution failed. Try:[/yellow]")
-                            console.print("1. Check if the URL is correct")
-                            console.print("2. Check if the website is accessible")
-                        elif "connection" in error_msg.lower():
-                            console.print("\n[yellow]Suggestion: Connection failed. Try:[/yellow]")
-                            console.print("1. Check your internet connection")
-                            console.print("2. Check if the website is accessible")
-                            console.print("3. Try a different image URL")
-            
-            # Ask if they want to run another test
-            if questionary.confirm("\nWould you like to run another test?").ask():
-                main()
-            else:
-                console.print("\n[bold blue]Thank you for using LUMA Diagnostics![/bold blue]")
+                    f.write(f"- {result}\n")
+                f.write("\n")
         
-        except Exception as e:
-            progress.update(task, completed=True)
-            console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
-            if questionary.confirm("Would you like to try again?").ask():
-                main()
+        console.print(f"\n[green]Created case file:[/green] {case_file}")
+        
+    except Exception as e:
+        console.print(f"\n[red]Error creating case:[/red] {str(e)}")
+
+def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]):
+    """Run the specified tests and display results."""
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
+            console=console,
+            transient=True
+        ) as progress:
+            
+            # Run tests and collect results
+            test_results = {}
+            
+            # Basic tests
+            task = progress.add_task("Running basic image tests...", total=100)
+            test_results["Basic Tests"] = diagnostics.run_basic_tests(image_url)
+            progress.update(task, completed=100)
+            
+            # Additional tests based on type
+            if test_type != "Basic Image Test":
+                task = progress.add_task(f"Running {test_type}...", total=100)
+                test_results[test_type] = diagnostics.run_generation_test(
+                    image_url, 
+                    api_key, 
+                    test_type,
+                    params
+                )
+                progress.update(task, completed=100)
+        
+        # Display results
+        console.print("\n[bold green]Test Results:[/bold green]")
+        for test_name, result in test_results.items():
+            console.print(f"\n[bold]{test_name}[/bold]")
+            if isinstance(result, dict):
+                for key, value in result.items():
+                    console.print(f"  [blue]{key}:[/blue] {value}")
+            else:
+                console.print(f"  {result}")
+        
+        # Offer to create a case
+        create_case(image_url, api_key, test_type, params, test_results)
+        
+        # Ask if user wants to run another test
+        if questionary.confirm("\nWould you like to run another test?").ask():
+            main()
+        else:
+            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+            
+    except Exception as e:
+        console.print(f"\n[bold red]Error running tests:[/bold red] {str(e)}")
 
 def main():
     """Main entry point for the wizard."""

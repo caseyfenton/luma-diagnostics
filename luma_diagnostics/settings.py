@@ -19,6 +19,7 @@ class Settings:
     def __init__(self):
         """Initialize settings manager."""
         self._settings = {}
+        self._session = {}  # For temporary session storage
         self._ensure_settings_dir()
         self._load_settings()
     
@@ -59,31 +60,32 @@ class Settings:
         self._save_settings()
     
     def get_last_image_url(self) -> Optional[str]:
-        """Get last used image URL."""
-        return self._settings.get("last_image_url", self.DEFAULT_TEST_IMAGE)
+        """Get last used image URL from session."""
+        return self._session.get("last_image_url")
     
     def set_last_image_url(self, url: str):
-        """Save last used image URL."""
-        self._settings["last_image_url"] = url
-        self._save_settings()
+        """Save last used image URL to session."""
+        self._session["last_image_url"] = url
     
     def get_last_test_type(self) -> Optional[str]:
-        """Get last used test type."""
-        return self._settings.get("last_test_type", "Basic Image Test")
+        """Get last used test type from session."""
+        return self._session.get("last_test_type", "Basic Image Test")
     
     def set_last_test_type(self, test_type: str):
-        """Save last used test type."""
-        self._settings["last_test_type"] = test_type
-        self._save_settings()
+        """Save last used test type to session."""
+        self._session["last_test_type"] = test_type
     
     def get_last_params(self) -> Dict[str, Any]:
-        """Get last used test parameters."""
-        return self._settings.get("last_params", {})
+        """Get last used test parameters from session."""
+        return self._session.get("last_params", {})
     
     def set_last_params(self, params: Dict[str, Any]):
-        """Save last used test parameters."""
-        self._settings["last_params"] = params
-        self._save_settings()
+        """Save last used test parameters to session."""
+        self._session["last_params"] = params
+    
+    def clear_session(self):
+        """Clear all session data."""
+        self._session = {}
     
     def clear(self):
         """Clear all settings."""
