@@ -1,0 +1,91 @@
+"""Settings management for LUMA Diagnostics."""
+
+import os
+import json
+from pathlib import Path
+from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(os.path.expanduser("~/.env"))
+
+class Settings:
+    """Manages persistent settings and defaults."""
+    
+    DEFAULT_TEST_IMAGE = "https://raw.githubusercontent.com/lumalabs/luma-sample-data/main/test_image.jpg"
+    SETTINGS_DIR = os.path.expanduser("~/.config/luma-diagnostics")
+    SETTINGS_FILE = os.path.join(SETTINGS_DIR, "settings.json")
+    
+    def __init__(self):
+        """Initialize settings manager."""
+        self._settings = {}
+        self._ensure_settings_dir()
+        self._load_settings()
+    
+    def _ensure_settings_dir(self):
+        """Ensure settings directory exists."""
+        os.makedirs(self.SETTINGS_DIR, exist_ok=True)
+    
+    def _load_settings(self):
+        """Load settings from file."""
+        try:
+            if os.path.exists(self.SETTINGS_FILE):
+                with open(self.SETTINGS_FILE, 'r') as f:
+                    self._settings = json.load(f)
+        except Exception:
+            self._settings = {}
+    
+    def _save_settings(self):
+        """Save settings to file."""
+        try:
+            with open(self.SETTINGS_FILE, 'w') as f:
+                json.dump(self._settings, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save settings: {e}")
+    
+    def get_api_key(self) -> Optional[str]:
+        """Get API key from various sources."""
+        # Try environment variable first
+        api_key = os.getenv("LUMA_API_KEY")
+        if api_key:
+            return api_key
+        
+        # Try saved settings
+        return self._settings.get("api_key")
+    
+    def set_api_key(self, api_key: str):
+        """Save API key to settings."""
+        self._settings["api_key"] = api_key
+        self._save_settings()
+    
+    def get_last_image_url(self) -> Optional[str]:
+        """Get last used image URL."""
+        return self._settings.get("last_image_url", self.DEFAULT_TEST_IMAGE)
+    
+    def set_last_image_url(self, url: str):
+        """Save last used image URL."""
+        self._settings["last_image_url"] = url
+        self._save_settings()
+    
+    def get_last_test_type(self) -> Optional[str]:
+        """Get last used test type."""
+        return self._settings.get("last_test_type", "Basic Image Test")
+    
+    def set_last_test_type(self, test_type: str):
+        """Save last used test type."""
+        self._settings["last_test_type"] = test_type
+        self._save_settings()
+    
+    def get_last_params(self) -> Dict[str, Any]:
+        """Get last used test parameters."""
+        return self._settings.get("last_params", {})
+    
+    def set_last_params(self, params: Dict[str, Any]):
+        """Save last used test parameters."""
+        self._settings["last_params"] = params
+        self._save_settings()
+    
+    def clear(self):
+        """Clear all settings."""
+        self._settings = {}
+        self._save_settings()

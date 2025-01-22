@@ -13,8 +13,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
 from . import diagnostics
 from . import utils
+from . import settings
 
 console = Console()
+
+# Initialize settings
+SETTINGS = settings.Settings()
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -34,19 +38,76 @@ def print_welcome():
 
 def get_image_url() -> str:
     """Get the image URL from the user."""
+    last_url = SETTINGS.get_last_image_url()
+    
     questions = [
+        {
+            "type": "select",
+            "name": "url_source",
+            "message": "Which image would you like to test?",
+            "choices": [
+                "Enter a new URL",
+                f"Use last tested image ({last_url})",
+                f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})"
+            ]
+        },
         {
             "type": "text",
             "name": "image_url",
-            "message": "What's the URL of the image you want to test?",
-            "validate": lambda url: True if url.startswith(('http://', 'https://')) else "Please enter a valid HTTP(S) URL"
+            "message": "Enter the URL of the image you want to test:",
+            "validate": lambda url: True if url.startswith(('http://', 'https://')) else "Please enter a valid HTTP(S) URL",
+            "when": lambda x: x["url_source"] == "Enter a new URL"
         }
     ]
+    
     answers = questionary.prompt(questions)
-    return answers["image_url"]
+    
+    if answers["url_source"] == "Enter a new URL":
+        url = answers["image_url"]
+    elif answers["url_source"].startswith("Use last tested"):
+        url = last_url
+    else:
+        url = settings.Settings.DEFAULT_TEST_IMAGE
+    
+    SETTINGS.set_last_image_url(url)
+    return url
 
 def get_api_key() -> Optional[str]:
     """Get the API key from the user."""
+    current_key = SETTINGS.get_api_key()
+    
+    if current_key:
+        questions = [
+            {
+                "type": "select",
+                "name": "key_source",
+                "message": "Which API key would you like to use?",
+                "choices": [
+                    "Use existing API key",
+                    "Enter a new API key",
+                    "Don't use an API key"
+                ]
+            },
+            {
+                "type": "password",
+                "name": "api_key",
+                "message": "Please enter your LUMA API key:",
+                "when": lambda x: x["key_source"] == "Enter a new API key"
+            }
+        ]
+        
+        answers = questionary.prompt(questions)
+        
+        if answers["key_source"] == "Use existing API key":
+            return current_key
+        elif answers["key_source"] == "Enter a new API key":
+            new_key = answers["api_key"]
+            SETTINGS.set_api_key(new_key)
+            return new_key
+        else:
+            return None
+    
+    # No existing key
     questions = [
         {
             "type": "confirm",
@@ -61,11 +122,18 @@ def get_api_key() -> Optional[str]:
             "when": lambda x: x["has_key"]
         }
     ]
+    
     answers = questionary.prompt(questions)
-    return answers.get("api_key")
+    if answers.get("has_key"):
+        api_key = answers.get("api_key")
+        SETTINGS.set_api_key(api_key)
+        return api_key
+    return None
 
 def get_test_type(api_key: Optional[str]) -> str:
     """Get the type of test to run."""
+    last_test = SETTINGS.get_last_test_type()
+    
     choices = ["Basic Image Test"]
     if api_key:
         choices.extend([
@@ -80,47 +148,105 @@ def get_test_type(api_key: Optional[str]) -> str:
             "type": "select",
             "name": "test_type",
             "message": "What type of test would you like to run?",
-            "choices": choices
+            "choices": [f"Use last test type ({last_test})"] + choices if last_test else choices,
+            "default": last_test if last_test in choices else choices[0]
         }
     ]
+    
     answers = questionary.prompt(questions)
-    return answers["test_type"]
+    test_type = answers["test_type"]
+    
+    if test_type.startswith("Use last test type"):
+        test_type = last_test
+    
+    SETTINGS.set_last_test_type(test_type)
+    return test_type
 
 def get_generation_params(test_type: str) -> Dict[str, Any]:
     """Get generation-specific parameters."""
-    params = {}
+    last_params = SETTINGS.get_last_params()
     
     if test_type == "Text-to-Image Generation":
         questions = [
             {
+                "type": "select",
+                "name": "param_source",
+                "message": "Which parameters would you like to use?",
+                "choices": [
+                    "Use new parameters",
+                    "Use last parameters" if last_params else "Use default parameters"
+                ]
+            },
+            {
                 "type": "text",
                 "name": "prompt",
                 "message": "Enter your text prompt:",
-                "default": "A serene mountain lake at sunset with reflections in the water"
+                "default": last_params.get("prompt", "A serene mountain lake at sunset with reflections in the water"),
+                "when": lambda x: x["param_source"] == "Use new parameters"
             },
             {
                 "type": "select",
                 "name": "aspect_ratio",
                 "message": "Choose aspect ratio:",
                 "choices": ["16:9", "4:3", "1:1", "9:16"],
-                "default": "16:9"
+                "default": last_params.get("aspect_ratio", "16:9"),
+                "when": lambda x: x["param_source"] == "Use new parameters"
             }
         ]
-        params = questionary.prompt(questions)
+        
+        answers = questionary.prompt(questions)
+        
+        if answers["param_source"] == "Use new parameters":
+            params = {
+                "prompt": answers["prompt"],
+                "aspect_ratio": answers["aspect_ratio"]
+            }
+        else:
+            params = last_params if last_params else {
+                "prompt": "A serene mountain lake at sunset with reflections in the water",
+                "aspect_ratio": "16:9"
+            }
     
     elif test_type == "Image-to-Image Generation":
         questions = [
             {
+                "type": "select",
+                "name": "param_source",
+                "message": "Which parameters would you like to use?",
+                "choices": [
+                    "Use new parameters",
+                    "Use last parameters" if last_params else "Use default parameters"
+                ]
+            },
+            {
                 "type": "text",
                 "name": "prompt",
                 "message": "Enter your modification prompt:",
-                "default": "Make it more vibrant and colorful"
+                "default": last_params.get("prompt", "Make it more vibrant and colorful"),
+                "when": lambda x: x["param_source"] == "Use new parameters"
             }
         ]
-        params = questionary.prompt(questions)
+        
+        answers = questionary.prompt(questions)
+        
+        if answers["param_source"] == "Use new parameters":
+            params = {"prompt": answers["prompt"]}
+        else:
+            params = last_params if last_params else {
+                "prompt": "Make it more vibrant and colorful"
+            }
     
     elif test_type == "Image-to-Video Generation":
         questions = [
+            {
+                "type": "select",
+                "name": "param_source",
+                "message": "Which parameters would you like to use?",
+                "choices": [
+                    "Use new parameters",
+                    "Use last parameters" if last_params else "Use default parameters"
+                ]
+            },
             {
                 "type": "select",
                 "name": "camera_motion",
@@ -130,19 +256,36 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
                     "Push In", "Pull Out", "Zoom In", "Zoom Out", "Pan Left",
                     "Pan Right", "Orbit Left", "Orbit Right", "Crane Up", "Crane Down"
                 ],
-                "default": "Orbit Left"
+                "default": last_params.get("camera_motion", "Orbit Left"),
+                "when": lambda x: x["param_source"] == "Use new parameters"
             },
             {
                 "type": "text",
                 "name": "duration",
                 "message": "Enter duration in seconds:",
-                "default": "3.0",
-                "validate": lambda x: True if x.replace(".", "").isdigit() else "Please enter a valid number"
+                "default": str(last_params.get("duration", "3.0")),
+                "validate": lambda x: True if x.replace(".", "").isdigit() else "Please enter a valid number",
+                "when": lambda x: x["param_source"] == "Use new parameters"
             }
         ]
-        params = questionary.prompt(questions)
-        params["duration"] = float(params["duration"])
+        
+        answers = questionary.prompt(questions)
+        
+        if answers["param_source"] == "Use new parameters":
+            params = {
+                "camera_motion": answers["camera_motion"],
+                "duration": float(answers["duration"])
+            }
+        else:
+            params = last_params if last_params else {
+                "camera_motion": "Orbit Left",
+                "duration": 3.0
+            }
     
+    else:
+        params = {}
+    
+    SETTINGS.set_last_params(params)
     return params
 
 def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]):
