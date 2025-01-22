@@ -171,6 +171,26 @@ def get_case_config_dir() -> Path:
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 
+def get_case_data_dir() -> Path:
+    """Get the data directory for storing test results."""
+    data_dir = get_case_config_dir() / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
+
+def get_cases_dir() -> Path:
+    """Get the directory for storing all cases."""
+    cases_dir = get_case_config_dir() / "cases"
+    cases_dir.mkdir(parents=True, exist_ok=True)
+    return cases_dir
+
+def get_case_dir(case_id: str) -> Path:
+    """Get the directory for a specific case."""
+    if not case_id:
+        return get_cases_dir()
+    case_dir = get_cases_dir() / case_id
+    case_dir.mkdir(parents=True, exist_ok=True)
+    return case_dir
+
 def generate_id() -> str:
     """Generate a unique ID for a case."""
     return str(uuid.uuid4())
@@ -184,15 +204,3 @@ def validate_api_key(api_key: str) -> Optional[str]:
     if len(api_key) < 30:
         return "Invalid API key length (should be at least 30 characters)"
     return None
-
-def get_case_data_dir() -> Path:
-    """Get the data directory for storing test results."""
-    data_dir = get_case_config_dir() / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
-
-def get_case_dir(case_id: str) -> Path:
-    """Get the directory for a specific case."""
-    case_dir = get_case_config_dir() / "cases"
-    case_dir.mkdir(parents=True, exist_ok=True)
-    return case_dir
