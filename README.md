@@ -1,6 +1,6 @@
 # LUMA Labs API Diagnostics Tool
 
-A comprehensive diagnostic tool for troubleshooting LUMA Dream Machine API issues, particularly focusing on the "Failed to read user input frames" error.
+A comprehensive diagnostic tool for testing and validating the LUMA Dream Machine API, with special focus on image and video generation capabilities.
 
 ## Features
 
@@ -10,6 +10,20 @@ A comprehensive diagnostic tool for troubleshooting LUMA Dream Machine API issue
 - Redirect & Response Analysis
 - Response Headers & Content Analysis
 - Basic Image Validity
+
+### Generation Tests (requires API key)
+- Text-to-Image Generation
+  - Default prompts with standard settings
+  - Custom prompts and configurations
+  - Status monitoring and result validation
+- Image-to-Image Generation
+  - Style transfer testing
+  - Image modification capabilities
+  - Reference image handling
+- Image-to-Video Generation
+  - Camera motion validation
+  - Video quality assessment
+  - Generation status tracking
 
 ### Advanced Tests
 - Advanced Image Analysis
@@ -60,54 +74,78 @@ pip install luma-diagnostics
 
 ## Usage
 
-### For Customers
+### Quick Start
 
-1. Quick single test:
+1. Install the package:
    ```bash
-   # Set your image URL directly
-   export TEST_IMAGE_URL="https://example.com/path/to/your/image.jpg"
-   python luma_diagnostics.py
+   pip install luma-diagnostics
    ```
 
-2. Using a configuration file:
+2. Set up your environment:
    ```bash
-   # Copy the template
+   # Copy the example environment file
    cp env.example .env
    
    # Edit .env with your settings
+   # Required: TEST_IMAGE_URL
+   # Optional but recommended: LUMA_API_KEY
    nano .env
-   
-   # Run diagnostics
-   python luma_diagnostics.py
    ```
 
-### For Support Team
-
-1. Create a new case:
+3. Run diagnostics:
    ```bash
-   # Copy the case template
-   cp cases/templates/case.env.template cases/active/case123.env
-   
-   # Edit the case configuration
-   nano cases/active/case123.env
-   
-   # Run diagnostics for this case
-   python luma_diagnostics.py --case case123
+   # Basic test with just an image URL
+   luma-diagnostics --image-url https://example.com/image.jpg
+
+   # Full test suite with API key
+   luma-diagnostics --case my_test_case
    ```
 
-2. View results:
+### Using Generation Tests
+
+Generation tests require a LUMA API key and are automatically run when the key is available:
+
+1. Text-to-Image:
    ```bash
-   # Results are saved in cases/results/case123/
-   # Named with timestamp: YYYY-MM-DDTHHMMSS-diagnostic.json
+   # Test with default prompt
+   luma-diagnostics --case default_prompt
+
+   # Test with custom prompt
+   luma-diagnostics --case custom_prompt --config config.json
    ```
 
-3. Running multiple cases:
+2. Image-to-Image:
    ```bash
-   # Test multiple cases sequentially
-   for case in case123 case456 case789; do
-     python luma_diagnostics.py --case $case
-   done
+   # Test style transfer
+   luma-diagnostics --case style_transfer --image-url https://example.com/source.jpg
+
+   # Test image modifications
+   luma-diagnostics --case image_mod --config mod_config.json
    ```
+
+3. Image-to-Video:
+   ```bash
+   # Test video generation
+   luma-diagnostics --case video_gen --config video_config.json
+   ```
+
+### Understanding Results
+
+Results are saved in both JSON and human-readable text formats:
+
+```
+results/
+└── case_id/
+    ├── diagnostic_results_TIMESTAMP.json  # Machine-readable format
+    └── diagnostic_results_TIMESTAMP.txt   # Human-readable format
+```
+
+The results include:
+- Test status (completed/failed)
+- Detailed error messages if applicable
+- Generation IDs and status
+- Asset URLs when available
+- Performance metrics
 
 ## Case Management
 
@@ -138,23 +176,17 @@ Each case configuration file (`cases/active/caseXXX.env`) includes:
 
 See `cases/templates/case.env.template` for all available options.
 
-### Results
-- Results are automatically saved with timestamps
-- Each case has its own results directory
-- Both JSON (machine-readable) and TXT (human-readable) formats
-- Customer information can be included/excluded
-
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | TEST_IMAGE_URL | Yes | URL of the image to test |
-| LUMA_API_KEY | No | Your LUMA API key for advanced tests |
+| LUMA_API_KEY | No* | Your LUMA API key (required for generation tests) |
 | CASE_ID | No | Unique identifier for this test case |
-| CUSTOMER_ID | No | Customer identifier |
-| PRIORITY | No | Case priority (low/medium/high/critical) |
+| OUTPUT_DIR | No | Custom directory for test results |
+| CONFIG_PATH | No | Path to custom test configuration |
 
-See `env.example` or `cases/templates/case.env.template` for all available options.
+*Required for generation tests and advanced API features
 
 ## Common Issues & Solutions
 
