@@ -48,8 +48,9 @@ def main():
         # Find the output files from the results
         output_files = []
         for result in results:
-            if isinstance(result, dict) and "output_files" in result:
-                output_files.extend(result["output_files"])
+            if result["test_name"] == "Output Files":
+                output_files = result["details"]["output_files"]
+                break
         
         print("\nDiagnostics completed successfully!")
         if output_files:
@@ -60,18 +61,24 @@ def main():
         print("\nSummary of results:")
         print("-" * 40)
         for result in results:
-            if isinstance(result, dict):
-                if "test_name" in result:
-                    print(f"\nTest: {result['test_name']}")
-                    if result["status"] == "completed":
-                        if "report" in result:
-                            print(result["report"])
-                        else:
-                            print(f"Status: {result['status']}")
-                    else:
-                        print(f"Error: {result.get('error', 'Unknown error')}")
+            if result["test_name"] != "Output Files":  # Skip output files from summary
+                print(f"\nTest: {result['test_name']}")
+                print("-" * 40)
+                
+                if result["status"] == "completed":
+                    if "details" in result:
+                        for k, v in result["details"].items():
+                            if isinstance(v, dict):
+                                print(f"{k}:")
+                                for sub_k, sub_v in v.items():
+                                    print(f"  {sub_k}: {sub_v}")
+                            else:
+                                print(f"{k}: {v}")
                 else:
-                    print(json.dumps(result, indent=2))
+                    if "details" in result and "error" in result["details"]:
+                        print(f"Error: {result['details']['error']}")
+                    else:
+                        print(f"Status: {result['status']}")
         
     except Exception as e:
         print(f"Error running diagnostics: {e}", file=sys.stderr)
