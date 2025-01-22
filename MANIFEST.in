@@ -1,6 +1,42 @@
 include LICENSE
 include README.md
 include requirements.txt
-include cases/templates/*
-recursive-exclude * __pycache__
-recursive-exclude * *.py[cod]
+include pyproject.toml
+include env.example
+
+recursive-include luma_diagnostics/templates *
+recursive-include cases/templates *
+
+exclude .git
+exclude .git/*
+exclude test_env
+exclude test_env/*
+exclude __pycache__
+exclude __pycache__/*
+exclude *.pyc
+exclude *.pyo
+exclude *.pyd
+exclude .pytest_cache
+exclude .coverage
+exclude htmlcov
+exclude .tox
+exclude .env
+exclude .venv
+exclude env
+exclude venv
+exclude ENV
+exclude env.bak
+exclude venv.bak
+exclude .Python
+exclude *.so
+exclude *.egg
+exclude *.egg-info
+exclude dist
+exclude build
+exclude eggs
+exclude sdist
+exclude *.egg-info
+exclude .installed.cfg
+exclude *.egg-info
+exclude .eggs
+exclude .DS_Store
