@@ -49,14 +49,14 @@ class Case:
             description=data["description"],
             created_at=data["created_at"]
         )
-        case.results = data["results"]
+        case.results = data.get("results", [])
         return case
 
 class CaseManager:
     """Manages diagnostic cases."""
     
     def __init__(self):
-        self.cases_dir = utils.get_case_config_dir() / "cases"
+        self.cases_dir = utils.get_case_dir("")
         self.cases_dir.mkdir(parents=True, exist_ok=True)
         self.current_case: Optional[Case] = None
     
@@ -65,16 +65,20 @@ class CaseManager:
         case = Case.create(title, description)
         self._save_case(case)
         self.current_case = case
-        print_success(f"Created case: {title} (ID: {case.case_id})")
+        print_success(f"Created case: {case.title} (ID: {case.case_id})")
         return case
     
     def list_cases(self) -> List[Case]:
         """List all cases."""
         cases = []
         for file in self.cases_dir.glob("*.json"):
-            with open(file, 'r') as f:
-                data = json.load(f)
-                cases.append(Case.from_dict(data))
+            try:
+                with open(file, 'r') as f:
+                    data = json.load(f)
+                    cases.append(Case.from_dict(data))
+            except (json.JSONDecodeError, KeyError) as e:
+                print_error(f"Error reading case file {file}: {e}")
+                continue
         return sorted(cases, key=lambda x: x.created_at, reverse=True)
     
     def get_case(self, case_id: str) -> Optional[Case]:
@@ -82,8 +86,12 @@ class CaseManager:
         file = self.cases_dir / f"{case_id}.json"
         if not file.exists():
             return None
-        with open(file, 'r') as f:
-            return Case.from_dict(json.load(f))
+        try:
+            with open(file, 'r') as f:
+                return Case.from_dict(json.load(f))
+        except (json.JSONDecodeError, KeyError) as e:
+            print_error(f"Error reading case {case_id}: {e}")
+            return None
     
     def add_test_result(self, result: Dict) -> None:
         """Add a test result to the current case."""
