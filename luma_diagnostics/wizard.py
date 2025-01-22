@@ -159,7 +159,8 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        console=console
+        console=console,
+        transient=True
     ) as progress:
         task = progress.add_task(description="Initializing...", total=None)
         
@@ -177,15 +178,16 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
             
             # Run each test with progress updates
             for test_name, test_func in test_sequence:
+                # Clear previous progress
                 progress.update(task, description=f"Running {test_name} test...")
                 
                 try:
                     result = test_func()
                     results.append(result)
                     
-                    # Show immediate feedback
+                    # Show immediate feedback and clear progress
+                    progress.stop()
                     if result["status"] == "failed":
-                        progress.stop()
                         console.print(f"\n[red]✗ {test_name} failed: {result['details'].get('error', 'Unknown error')}[/red]")
                         
                         # Handle timeout specifically
@@ -199,6 +201,7 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                                     result = test_func()
                                     # Replace the failed result with the retry result
                                     results[-1] = result
+                                    progress.stop()
                                     
                                     if result["status"] == "completed":
                                         console.print(f"[green]✓ {test_name} completed successfully on retry[/green]")
@@ -206,8 +209,19 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                                         console.print(f"[red]✗ {test_name} failed again: {result['details'].get('error', 'Unknown error')}[/red]")
                     else:
                         console.print(f"[green]✓ {test_name} completed successfully[/green]")
+                        
+                        # Show test details immediately
+                        if "details" in result:
+                            for k, v in result["details"].items():
+                                if isinstance(v, dict):
+                                    console.print(f"  {k}:")
+                                    for sub_k, sub_v in v.items():
+                                        console.print(f"    {sub_k}: {sub_v}")
+                                else:
+                                    console.print(f"  {k}: {v}")
                 
                 except Exception as e:
+                    progress.stop()
                     console.print(f"\n[red]✗ Error in {test_name}: {str(e)}[/red]")
                     results.append({
                         "test_name": test_name,
@@ -215,16 +229,19 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                         "details": {"error": str(e)}
                     })
                 
+                # Add a newline between tests
+                console.print()
+                
                 # Small pause between tests for readability
                 time.sleep(0.5)
+                progress.start()
             
-            progress.update(task, description="Tests completed", completed=True)
+            progress.stop()
+            console.print("\n[bold green]All tests completed![/bold green]")
             
             # Show final results
             clear_screen()
-            console.print("\n[bold green]All tests completed![/bold green]\n")
-            
-            console.print("[bold]Summary of results:[/bold]")
+            console.print("\n[bold]Summary of results:[/bold]")
             console.print("=" * 40)
             
             for result in results:
