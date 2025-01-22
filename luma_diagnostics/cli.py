@@ -30,6 +30,7 @@ def load_environment():
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="LUMA Labs API Diagnostics Tool")
+    parser.add_argument("--wizard", action="store_true", help="Run in interactive wizard mode")
     parser.add_argument("--case", help="Case ID to load configuration from")
     parser.add_argument("--image-url", help="Direct URL of image to test")
     parser.add_argument("--config", help="Path to configuration file")
@@ -38,6 +39,11 @@ def main():
     args = parser.parse_args()
     
     try:
+        if args.wizard:
+            from . import wizard
+            wizard.main()
+            return
+        
         results = diagnostics.run_with_config(
             case_id=args.case,
             config_path=args.config,

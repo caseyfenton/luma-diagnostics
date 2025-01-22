@@ -74,6 +74,20 @@ pip install luma-diagnostics
 
 ## Usage
 
+### Interactive Wizard Mode (Recommended for New Users)
+
+The easiest way to use LUMA Diagnostics is through the interactive wizard:
+
+```bash
+luma-diagnostics --wizard
+```
+
+The wizard will:
+1. Guide you through the setup process
+2. Help you choose which tests to run
+3. Explain the results in a clear, human-readable format
+4. Provide suggestions for next steps
+
 ### Quick Start
 
 1. Install the package:
