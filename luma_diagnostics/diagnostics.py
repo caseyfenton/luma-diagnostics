@@ -4,11 +4,12 @@ import os
 import json
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 from . import tests
 from . import api_tests
 from . import utils
+from . import generation_tests
 
 def run_with_config(case_id: Optional[str] = None,
                    config_path: Optional[str] = None,
@@ -33,6 +34,26 @@ def run_with_config(case_id: Optional[str] = None,
     if api_key:
         api_results = api_tests.run_api_tests(api_key, test_image_url)
         results.extend(api_results)
+    
+    # Run generation tests
+    if api_key:
+        try:
+            generation_report = generation_tests.run_generation_tests(
+                api_key,
+                test_image_url,
+                output_dir
+            )
+            results.append({
+                "test_name": "Generation Tests",
+                "status": "completed",
+                "report": generation_report
+            })
+        except Exception as e:
+            results.append({
+                "test_name": "Generation Tests",
+                "status": "failed",
+                "error": str(e)
+            })
     
     # Generate output paths
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
