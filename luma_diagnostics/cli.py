@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 from . import diagnostics
 from . import utils
 import json
+from rich.console import Console
+
+console = Console()
 
 def create_case_directories():
     """Create necessary case directories if they don't exist."""
@@ -29,19 +32,26 @@ def load_environment():
 
 def main():
     """Main entry point for the CLI."""
-    parser = argparse.ArgumentParser(description="LUMA Labs API Diagnostics Tool")
-    parser.add_argument("--wizard", action="store_true", help="Run in interactive wizard mode")
-    parser.add_argument("--case", help="Case ID to load configuration from")
-    parser.add_argument("--image-url", help="Direct URL of image to test")
-    parser.add_argument("--config", help="Path to configuration file")
-    parser.add_argument("--output-dir", help="Directory to store results")
-    
-    args = parser.parse_args()
-    
     try:
+        parser = argparse.ArgumentParser(description="LUMA Diagnostics - Test and validate LUMA API functionality")
+        parser.add_argument("--wizard", action="store_true", help="Run in interactive wizard mode")
+        parser.add_argument("--image-url", help="URL of the image to test")
+        parser.add_argument("--api-key", help="LUMA API key for generation tests")
+        parser.add_argument("--case", help="Test case to run")
+        parser.add_argument("--config", help="Path to configuration file")
+        parser.add_argument("--output-dir", help="Directory to store results")
+        
+        args = parser.parse_args()
+        
         if args.wizard:
             from . import wizard
-            wizard.main()
+            try:
+                wizard.main()
+            except KeyboardInterrupt:
+                sys.exit(0)
+            except Exception as e:
+                console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
+                sys.exit(1)
             return
         
         results = diagnostics.run_with_config(
@@ -86,8 +96,11 @@ def main():
                     else:
                         print(f"Status: {result['status']}")
         
+    except KeyboardInterrupt:
+        console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+        sys.exit(0)
     except Exception as e:
-        print(f"Error running diagnostics: {e}", file=sys.stderr)
+        console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

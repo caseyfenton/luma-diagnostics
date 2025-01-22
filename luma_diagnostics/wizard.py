@@ -36,101 +36,116 @@ def print_welcome():
     ))
     time.sleep(1)
 
-def get_image_url() -> str:
+def get_image_url() -> Optional[str]:
     """Get the image URL from the user."""
-    last_url = SETTINGS.get_last_image_url()
-    
-    # Build choices dynamically
-    choices = ["Enter a new URL"]
-    if last_url != settings.Settings.DEFAULT_TEST_IMAGE:  # Only add if there's a real last tested image
-        choices.append(f"Use last tested image ({last_url})")
-    choices.append(f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})")
-    
-    questions = [
-        {
-            "type": "select",
-            "name": "url_source",
-            "message": "Which image would you like to test?",
-            "choices": choices
-        },
-        {
-            "type": "text",
-            "name": "image_url",
-            "message": "Enter the URL of the image you want to test:",
-            "validate": lambda url: True if url.startswith(('http://', 'https://')) else "Please enter a valid HTTP(S) URL",
-            "when": lambda x: x["url_source"] == "Enter a new URL"
-        }
-    ]
-    
-    answers = questionary.prompt(questions)
-    
-    if answers["url_source"] == "Enter a new URL":
-        url = answers["image_url"]
-    elif answers["url_source"].startswith("Use last tested"):
-        url = last_url
-    else:
-        url = settings.Settings.DEFAULT_TEST_IMAGE
-    
-    SETTINGS.set_last_image_url(url)
-    return url
-
-def get_api_key() -> Optional[str]:
-    """Get the API key from the user."""
-    current_key = SETTINGS.get_api_key()
-    
-    if current_key:
+    try:
+        last_url = SETTINGS.get_last_image_url()
+        
+        # Build choices dynamically
+        choices = ["Enter a new URL"]
+        if last_url != settings.Settings.DEFAULT_TEST_IMAGE:  # Only add if there's a real last tested image
+            choices.append(f"Use last tested image ({last_url})")
+        choices.append(f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})")
+        
         questions = [
             {
                 "type": "select",
-                "name": "key_source",
-                "message": "Which API key would you like to use?",
-                "choices": [
-                    "Use existing API key",
-                    "Enter a new API key",
-                    "Don't use an API key"
-                ]
+                "name": "url_source",
+                "message": "Which image would you like to test?",
+                "choices": choices
+            },
+            {
+                "type": "text",
+                "name": "image_url",
+                "message": "Enter the URL of the image you want to test:",
+                "validate": lambda url: True if url.startswith(('http://', 'https://')) else "Please enter a valid HTTP(S) URL",
+                "when": lambda x: x["url_source"] == "Enter a new URL"
+            }
+        ]
+        
+        answers = questionary.prompt(questions)
+        if answers is None:  # User cancelled
+            return None
+        
+        if answers["url_source"] == "Enter a new URL":
+            url = answers["image_url"]
+        elif answers["url_source"].startswith("Use last tested"):
+            url = last_url
+        else:
+            url = settings.Settings.DEFAULT_TEST_IMAGE
+        
+        SETTINGS.set_last_image_url(url)
+        return url
+    
+    except KeyboardInterrupt:
+        return None
+
+def get_api_key() -> Optional[str]:
+    """Get the API key from the user."""
+    try:
+        current_key = SETTINGS.get_api_key()
+        
+        if current_key:
+            questions = [
+                {
+                    "type": "select",
+                    "name": "key_source",
+                    "message": "Which API key would you like to use?",
+                    "choices": [
+                        "Use existing API key",
+                        "Enter a new API key",
+                        "Don't use an API key"
+                    ]
+                },
+                {
+                    "type": "password",
+                    "name": "api_key",
+                    "message": "Please enter your LUMA API key:",
+                    "when": lambda x: x["key_source"] == "Enter a new API key"
+                }
+            ]
+            
+            answers = questionary.prompt(questions)
+            if answers is None:  # User cancelled
+                return "CANCELLED"
+            
+            if answers["key_source"] == "Use existing API key":
+                return current_key
+            elif answers["key_source"] == "Enter a new API key":
+                new_key = answers["api_key"]
+                SETTINGS.set_api_key(new_key)
+                return new_key
+            else:
+                return None
+        
+        # No existing key
+        questions = [
+            {
+                "type": "confirm",
+                "name": "has_key",
+                "message": "Do you have a LUMA API key? (Required for generation tests)",
+                "default": False
             },
             {
                 "type": "password",
                 "name": "api_key",
                 "message": "Please enter your LUMA API key:",
-                "when": lambda x: x["key_source"] == "Enter a new API key"
+                "when": lambda x: x["has_key"]
             }
         ]
         
         answers = questionary.prompt(questions)
+        if answers is None:  # User cancelled
+            return "CANCELLED"
         
-        if answers["key_source"] == "Use existing API key":
-            return current_key
-        elif answers["key_source"] == "Enter a new API key":
-            new_key = answers["api_key"]
-            SETTINGS.set_api_key(new_key)
-            return new_key
-        else:
-            return None
+        if answers.get("has_key"):
+            api_key = answers.get("api_key")
+            SETTINGS.set_api_key(api_key)
+            return api_key
+        return None
     
-    # No existing key
-    questions = [
-        {
-            "type": "confirm",
-            "name": "has_key",
-            "message": "Do you have a LUMA API key? (Required for generation tests)",
-            "default": False
-        },
-        {
-            "type": "password",
-            "name": "api_key",
-            "message": "Please enter your LUMA API key:",
-            "when": lambda x: x["has_key"]
-        }
-    ]
-    
-    answers = questionary.prompt(questions)
-    if answers.get("has_key"):
-        api_key = answers.get("api_key")
-        SETTINGS.set_api_key(api_key)
-        return api_key
-    return None
+    except KeyboardInterrupt:
+        return "CANCELLED"
 
 def get_test_type(api_key: Optional[str]) -> str:
     """Get the type of test to run."""
@@ -156,6 +171,9 @@ def get_test_type(api_key: Optional[str]) -> str:
     ]
     
     answers = questionary.prompt(questions)
+    if answers is None:  # User cancelled
+        return None
+    
     test_type = answers["test_type"]
     
     if test_type.startswith("Use last test type"):
@@ -197,6 +215,8 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
         ]
         
         answers = questionary.prompt(questions)
+        if answers is None:  # User cancelled
+            return None
         
         if answers["param_source"] == "Use new parameters":
             params = {
@@ -230,6 +250,8 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
         ]
         
         answers = questionary.prompt(questions)
+        if answers is None:  # User cancelled
+            return None
         
         if answers["param_source"] == "Use new parameters":
             params = {"prompt": answers["prompt"]}
@@ -272,6 +294,8 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
         ]
         
         answers = questionary.prompt(questions)
+        if answers is None:  # User cancelled
+            return None
         
         if answers["param_source"] == "Use new parameters":
             params = {
@@ -443,24 +467,46 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
 
 def main():
     """Main entry point for the wizard."""
-    print_welcome()
+    try:
+        print_welcome()
+        
+        # Get image URL
+        image_url = get_image_url()
+        if image_url is None:  # User cancelled
+            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+            return
+        
+        # Get API key
+        api_key = get_api_key()
+        if api_key == "CANCELLED":  # User cancelled
+            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+            return
+        
+        # Get test type
+        test_type = get_test_type(api_key)
+        if test_type is None:  # User cancelled
+            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+            return
+        
+        # Get additional parameters if needed
+        params = {}
+        if test_type not in ["Basic Image Test", "Full Test Suite"]:
+            params = get_generation_params(test_type)
+            if params is None:  # User cancelled
+                console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+                return
+        
+        # Run tests
+        run_tests(image_url, api_key, test_type, params)
     
-    # Get image URL
-    image_url = get_image_url()
-    
-    # Get API key
-    api_key = get_api_key()
-    
-    # Get test type
-    test_type = get_test_type(api_key)
-    
-    # Get additional parameters if needed
-    params = {}
-    if test_type not in ["Basic Image Test", "Full Test Suite"]:
-        params = get_generation_params(test_type)
-    
-    # Run tests
-    run_tests(image_url, api_key, test_type, params)
+    except KeyboardInterrupt:
+        console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
+        if questionary.confirm("Would you like to try again?").ask():
+            main()
+        else:
+            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
 
 if __name__ == "__main__":
     try:
