@@ -59,6 +59,40 @@ class Settings:
         self._settings["api_key"] = api_key
         self._save_settings()
     
+    def save_api_key_to_env(self, api_key: str) -> bool:
+        """Save API key to user's ~/.env file."""
+        try:
+            env_file = os.path.expanduser("~/.env")
+            key_line = f"LUMA_API_KEY={api_key}"
+            
+            # Read existing content if file exists
+            existing_lines = []
+            key_exists = False
+            if os.path.exists(env_file):
+                with open(env_file, "r") as f:
+                    for line in f:
+                        if line.strip().startswith("LUMA_API_KEY="):
+                            existing_lines.append(key_line)
+                            key_exists = True
+                        else:
+                            existing_lines.append(line.rstrip())
+            
+            # Add key if it doesn't exist
+            if not key_exists:
+                existing_lines.append(key_line)
+            
+            # Write back to file
+            with open(env_file, "w") as f:
+                f.write("\n".join(existing_lines))
+                if existing_lines:
+                    f.write("\n")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[red]Error saving API key to ~/.env:[/red] {str(e)}")
+            return False
+    
     def get_last_image_url(self) -> Optional[str]:
         """Get last used image URL from session."""
         return self._session.get("last_image_url")

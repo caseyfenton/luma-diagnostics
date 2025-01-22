@@ -88,106 +88,49 @@ def get_image_url() -> Optional[str]:
         return None
 
 def get_api_key() -> Optional[str]:
-    """Get the API key from the user."""
-    try:
-        # Check environment variable first
-        env_key = os.getenv("LUMA_API_KEY")
-        if env_key:
-            questions = [
-                {
-                    "type": "select",
-                    "name": "key_source",
-                    "message": f"Found API key in environment variable LUMA_API_KEY (ends with ...{mask_api_key(env_key)}). What would you like to do?",
-                    "choices": [
-                        "Use API key from environment variable",
-                        "Enter a new API key",
-                        "Don't use an API key"
-                    ]
-                },
-                {
-                    "type": "password",
-                    "name": "api_key",
-                    "message": "Please enter your LUMA API key:",
-                    "when": lambda x: x["key_source"] == "Enter a new API key"
-                }
-            ]
-            
-            answers = questionary.prompt(questions)
-            if answers is None:  # User cancelled
-                return "CANCELLED"
-            
-            if answers["key_source"] == "Use API key from environment variable":
-                return env_key
-            elif answers["key_source"] == "Enter a new API key":
-                new_key = answers["api_key"]
-                SETTINGS.set_api_key(new_key)
-                return new_key
-            else:
-                return None
-        
-        # Check saved settings
-        saved_key = SETTINGS.get_api_key()
-        if saved_key:
-            questions = [
-                {
-                    "type": "select",
-                    "name": "key_source",
-                    "message": f"Found saved API key in ~/.config/luma-diagnostics/settings.json (ends with ...{mask_api_key(saved_key)}). What would you like to do?",
-                    "choices": [
-                        "Use saved API key",
-                        "Enter a new API key",
-                        "Don't use an API key"
-                    ]
-                },
-                {
-                    "type": "password",
-                    "name": "api_key",
-                    "message": "Please enter your LUMA API key:",
-                    "when": lambda x: x["key_source"] == "Enter a new API key"
-                }
-            ]
-            
-            answers = questionary.prompt(questions)
-            if answers is None:  # User cancelled
-                return "CANCELLED"
-            
-            if answers["key_source"] == "Use saved API key":
-                return saved_key
-            elif answers["key_source"] == "Enter a new API key":
-                new_key = answers["api_key"]
-                SETTINGS.set_api_key(new_key)
-                return new_key
-            else:
-                return None
-        
-        # No existing key found
-        questions = [
-            {
-                "type": "confirm",
-                "name": "has_key",
-                "message": "Do you have a LUMA API key? (Required for generation tests)",
-                "default": False
-            },
-            {
-                "type": "password",
-                "name": "api_key",
-                "message": "Please enter your LUMA API key:",
-                "when": lambda x: x["has_key"]
-            }
-        ]
-        
-        answers = questionary.prompt(questions)
-        if answers is None:  # User cancelled
-            return "CANCELLED"
-        
-        if answers.get("has_key"):
-            api_key = answers.get("api_key")
-            SETTINGS.set_api_key(api_key)
+    """Get API key from environment, settings, or user input."""
+    # Try environment variable first
+    api_key = os.getenv("LUMA_API_KEY")
+    if api_key:
+        console.print("[green]Found API key in environment variables[/green]")
+        return api_key
+    
+    # Try settings file
+    api_key = SETTINGS.get_api_key()
+    if api_key:
+        # Show last 4 characters of existing key
+        masked_key = "*" * (len(api_key) - 4) + api_key[-4:]
+        console.print(f"[green]Found saved API key:[/green] {masked_key}")
+        if questionary.confirm("Would you like to use this API key?").ask():
             return api_key
+    
+    # Ask for new key
+    api_key = questionary.password("Please enter your LUMA API key:").ask()
+    if not api_key:
         return None
     
-    except KeyboardInterrupt:
-        return "CANCELLED"
+    # Ask about saving the key
+    save_options = [
+        "Yes, save to ~/.env file (recommended)",
+        "Yes, save to settings file",
+        "No, don't save"
+    ]
+    
+    save_choice = questionary.select(
+        "Would you like to save this API key for future use?",
+        choices=save_options,
+        default=save_options[0]
+    ).ask()
+    
+    if save_choice == save_options[0]:  # Save to ~/.env
+        if SETTINGS.save_api_key_to_env(api_key):
+            console.print("[green]API key saved to ~/.env file[/green]")
+            console.print("Note: You may need to restart your terminal for the environment variable to take effect")
+    elif save_choice == save_options[1]:  # Save to settings
+        SETTINGS.set_api_key(api_key)
+        console.print("[green]API key saved to settings file[/green]")
+    
+    return api_key
 
 def get_test_type(api_key: Optional[str]) -> str:
     """Get the type of test to run."""
@@ -356,12 +299,12 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
     SETTINGS.set_last_params(params)
     return params
 
-def create_case(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any], test_results: Dict[str, Any]):
-    """Create a case file with test results and additional information."""
+def create_case(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any], test_results: Dict[str, Any]) -> Optional[str]:
+    """Create a case file with test results and additional information. Returns case directory if created."""
     try:
         # Ask if user wants to create a case
         if not questionary.confirm("Would you like to create a case with these test results?").ask():
-            return
+            return None
         
         # Get case information
         questions = [
@@ -377,43 +320,89 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
                 "message": "Customer name (optional):",
             },
             {
-                "type": "editor",
+                "type": "text",
                 "name": "description",
                 "message": "Enter a description of the issue or technical context:",
                 "validate": lambda x: len(x) > 0
             },
             {
-                "type": "text",
+                "type": "select",
                 "name": "priority",
-                "message": "Priority level (P0-P3):",
-                "default": "P2",
-                "validate": lambda x: x in ["P0", "P1", "P2", "P3"]
+                "message": "Select priority level:",
+                "choices": ["P0 - Critical", "P1 - High", "P2 - Medium", "P3 - Low"],
+                "default": "P2 - Medium"
             }
         ]
         
         case_info = questionary.prompt(questions)
         if not case_info:  # User cancelled
-            return
+            return None
         
-        # Create case directory
+        # Extract priority level
+        case_info['priority'] = case_info['priority'].split(' - ')[0]
+        
+        # Create case directory if it doesn't exist
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        case_id = f"case_{timestamp}"
-        case_dir = os.path.join("cases", "active", case_id)
+        case_dir = os.path.join("cases", "active", "case001")  # Fixed case directory
         os.makedirs(case_dir, exist_ok=True)
         
-        # Create case markdown file
-        case_file = os.path.join(case_dir, f"{case_id.upper()}.md")
-        with open(case_file, "w") as f:
-            f.write(f"# {case_info['title']}\n\n")
-            f.write("## Case Information\n\n")
-            f.write(f"- **Case ID**: {case_id}\n")
-            f.write(f"- **Created**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"- **Priority**: {case_info['priority']}\n")
-            if case_info['customer']:
-                f.write(f"- **Customer**: {case_info['customer']}\n")
-            f.write("\n## Description\n\n")
-            f.write(case_info['description'])
-            f.write("\n\n## Test Configuration\n\n")
+        # Create test results files with timestamp
+        results_file_base = os.path.join(case_dir, f"test_results_{timestamp}")
+        
+        # Save JSON results
+        with open(f"{results_file_base}.json", "w") as f:
+            json.dump({
+                "timestamp": timestamp,
+                "image_url": image_url,
+                "test_type": test_type,
+                "parameters": params,
+                "results": test_results
+            }, f, indent=2)
+        
+        # Save human-readable results
+        with open(f"{results_file_base}.txt", "w") as f:
+            f.write(f"Test Results - {timestamp}\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(f"Image URL: {image_url}\n")
+            f.write(f"Test Type: {test_type}\n\n")
+            
+            if params:
+                f.write("Test Parameters:\n")
+                for key, value in params.items():
+                    f.write(f"- {key}: {value}\n")
+                f.write("\n")
+            
+            f.write("Results:\n")
+            for test_name, result in test_results.items():
+                f.write(f"\n{test_name}:\n")
+                f.write("-" * 30 + "\n")
+                if isinstance(result, dict):
+                    for key, value in result.items():
+                        f.write(f"- {key}: {value}\n")
+                else:
+                    f.write(f"- {result}\n")
+        
+        # Update or create case file
+        case_file = os.path.join(case_dir, "CASE_001.md")
+        is_new_case = not os.path.exists(case_file)
+        
+        if is_new_case:
+            # Create new case file if it doesn't exist
+            with open(case_file, "w") as f:
+                f.write(f"# {case_info['title']}\n\n")
+                f.write("## Case Information\n\n")
+                f.write("- **Case ID**: case001\n")
+                f.write(f"- **Created**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"- **Priority**: {case_info['priority']}\n")
+                if case_info['customer']:
+                    f.write(f"- **Customer**: {case_info['customer']}\n")
+                f.write("\n## Description\n\n")
+                f.write(case_info['description'])
+                f.write("\n\n## Test Results\n\n")
+        
+        # Append test results to case file
+        with open(case_file, "a") as f:
+            f.write(f"\n### Test Run - {timestamp}\n\n")
             f.write(f"- **Image URL**: {image_url}\n")
             f.write(f"- **Test Type**: {test_type}\n")
             if params:
@@ -421,20 +410,39 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
                 for key, value in params.items():
                     f.write(f"  - {key}: {value}\n")
             
-            f.write("\n## Test Results\n\n")
+            f.write("\n#### Results Summary\n\n")
             for test_name, result in test_results.items():
-                f.write(f"### {test_name}\n\n")
+                f.write(f"##### {test_name}\n\n")
                 if isinstance(result, dict):
                     for key, value in result.items():
                         f.write(f"- **{key}**: {value}\n")
                 else:
                     f.write(f"- {result}\n")
                 f.write("\n")
+            
+            f.write(f"\nDetailed results: [JSON]({results_file_base}.json) | [Text]({results_file_base}.txt)\n")
         
-        console.print(f"\n[green]Created case file:[/green] {case_file}")
+        # Print success messages with full paths
+        console.print("\n[green]Case Information:[/green]")
+        abs_case_dir = os.path.abspath(case_dir)
+        abs_case_file = os.path.abspath(case_file)
+        abs_results_base = os.path.abspath(results_file_base)
+        
+        if is_new_case:
+            console.print(f"[green]Created new case:[/green] {abs_case_file}")
+        else:
+            console.print(f"[green]Updated existing case:[/green] {abs_case_file}")
+            
+        console.print(f"[green]Created test results:[/green]")
+        console.print(f"- JSON: {abs_results_base}.json")
+        console.print(f"- Text: {abs_results_base}.txt")
+        console.print(f"\nAll case files are in: {abs_case_dir}")
+        
+        return case_dir
         
     except Exception as e:
         console.print(f"\n[red]Error creating case:[/red] {str(e)}")
+        return None
 
 def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]):
     """Run the specified tests and display results."""
@@ -479,16 +487,23 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                 console.print(f"  {result}")
         
         # Offer to create a case
-        create_case(image_url, api_key, test_type, params, test_results)
+        case_dir = create_case(image_url, api_key, test_type, params, test_results)
         
         # Ask if user wants to run another test
         if questionary.confirm("\nWould you like to run another test?").ask():
             main()
         else:
             console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+            if case_dir:
+                abs_case_dir = os.path.abspath(case_dir)
+                console.print(f"\n[green]Your case and test results are in:[/green] {abs_case_dir}")
+                console.print("You can view the case file and test results there.")
             
     except Exception as e:
         console.print(f"\n[bold red]Error running tests:[/bold red] {str(e)}")
+        return 1
+    
+    return 0
 
 def main():
     """Main entry point for the wizard."""
