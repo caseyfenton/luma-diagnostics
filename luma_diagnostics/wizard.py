@@ -161,101 +161,114 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
         TextColumn("[progress.description]{task.description}"),
         console=console
     ) as progress:
-        task = progress.add_task(description="Running tests...", total=None)
+        task = progress.add_task(description="Initializing...", total=None)
         
         try:
-            # Run tests with a 30-second timeout
-            results = diagnostics.run_with_config(
-                case_id=case_id,
-                config_path=None,
-                image_url=image_url,
-                output_dir=None,
-                timeout=30
-            )
-            progress.update(task, completed=True)
+            # Define test sequence
+            test_sequence = [
+                ("Public Access", lambda: diagnostics.tests.test_public_access(image_url)),
+                ("Certificate Validation", lambda: diagnostics.tests.test_cert_validation(image_url)),
+                ("Redirect Check", lambda: diagnostics.tests.test_redirect(image_url)),
+                ("Headers and Content", lambda: diagnostics.test_image_headers(image_url, timeout=30)),
+                ("Image Validity", lambda: diagnostics.test_image_validity(image_url, timeout=30))
+            ]
             
-            # Check for timeout or connection errors
-            has_errors = False
-            for result in results:
-                if result["status"] == "failed":
-                    has_errors = True
-                    if "timeout" in str(result.get("details", {}).get("error", "")).lower():
-                        console.print("\n[bold red]Error:[/bold red] Tests timed out. The server might be slow or unresponsive.")
-                        if questionary.confirm("Would you like to try again with a longer timeout?").ask():
-                            # Retry with longer timeout
-                            progress.update(task, description="Retrying with longer timeout...")
-                            results = diagnostics.run_with_config(
-                                case_id=case_id,
-                                config_path=None,
-                                image_url=image_url,
-                                output_dir=None,
-                                timeout=60
-                            )
-                            progress.update(task, completed=True)
-                            break
+            results = []
             
-            # Show results
+            # Run each test with progress updates
+            for test_name, test_func in test_sequence:
+                progress.update(task, description=f"Running {test_name} test...")
+                
+                try:
+                    result = test_func()
+                    results.append(result)
+                    
+                    # Show immediate feedback
+                    if result["status"] == "failed":
+                        progress.stop()
+                        console.print(f"\n[red]✗ {test_name} failed: {result['details'].get('error', 'Unknown error')}[/red]")
+                        
+                        # Handle timeout specifically
+                        if "timeout" in str(result.get("details", {}).get("error", "")).lower():
+                            if questionary.confirm("Would you like to retry this test with a longer timeout?").ask():
+                                progress.start()
+                                progress.update(task, description=f"Retrying {test_name} with longer timeout...")
+                                
+                                # Retry with longer timeout
+                                if test_name in ["Headers and Content", "Image Validity"]:
+                                    result = test_func()
+                                    # Replace the failed result with the retry result
+                                    results[-1] = result
+                                    
+                                    if result["status"] == "completed":
+                                        console.print(f"[green]✓ {test_name} completed successfully on retry[/green]")
+                                    else:
+                                        console.print(f"[red]✗ {test_name} failed again: {result['details'].get('error', 'Unknown error')}[/red]")
+                    else:
+                        console.print(f"[green]✓ {test_name} completed successfully[/green]")
+                
+                except Exception as e:
+                    console.print(f"\n[red]✗ Error in {test_name}: {str(e)}[/red]")
+                    results.append({
+                        "test_name": test_name,
+                        "status": "failed",
+                        "details": {"error": str(e)}
+                    })
+                
+                # Small pause between tests for readability
+                time.sleep(0.5)
+            
+            progress.update(task, description="Tests completed", completed=True)
+            
+            # Show final results
             clear_screen()
-            console.print("\n[bold green]Tests completed![/bold green]\n")
+            console.print("\n[bold green]All tests completed![/bold green]\n")
             
-            # Find output files
-            output_files = []
-            for result in results:
-                if result["test_name"] == "Output Files":
-                    output_files = result["details"]["output_files"]
-                    break
-            
-            if output_files:
-                console.print("[bold]Results saved to:[/bold]")
-                for f in output_files:
-                    console.print(f"  {f}")
-            
-            console.print("\n[bold]Summary of results:[/bold]")
+            console.print("[bold]Summary of results:[/bold]")
             console.print("=" * 40)
             
             for result in results:
-                if result["test_name"] != "Output Files":
-                    console.print(f"\n[bold]{result['test_name']}[/bold]")
-                    console.print("-" * 40)
-                    
-                    if result["status"] == "completed":
-                        if "details" in result:
-                            for k, v in result["details"].items():
-                                if isinstance(v, dict):
-                                    console.print(f"{k}:")
-                                    for sub_k, sub_v in v.items():
-                                        console.print(f"  {sub_k}: {sub_v}")
-                                else:
-                                    console.print(f"{k}: {v}")
-                    else:
-                        if "details" in result and "error" in result["details"]:
-                            console.print(f"[red]Error: {result['details']['error']}[/red]")
-                            
-                            # Provide helpful suggestions based on error
-                            error_msg = str(result["details"]["error"]).lower()
-                            if "timeout" in error_msg:
-                                console.print("\n[yellow]Suggestion: The server might be slow. Try:[/yellow]")
-                                console.print("1. Check your internet connection")
-                                console.print("2. Try a different image URL")
-                                console.print("3. Run the test again with a longer timeout")
-                            elif "certificate" in error_msg:
-                                console.print("\n[yellow]Suggestion: SSL/Certificate issue. Try:[/yellow]")
-                                console.print("1. Use an HTTPS URL")
-                                console.print("2. Check if the website's SSL certificate is valid")
-                            elif "dns" in error_msg:
-                                console.print("\n[yellow]Suggestion: DNS resolution failed. Try:[/yellow]")
-                                console.print("1. Check if the URL is correct")
-                                console.print("2. Check if the website is accessible")
-                            elif "connection" in error_msg:
-                                console.print("\n[yellow]Suggestion: Connection failed. Try:[/yellow]")
-                                console.print("1. Check your internet connection")
-                                console.print("2. Check if the website is accessible")
-                                console.print("3. Try a different image URL")
-                        else:
-                            console.print(f"Status: {result['status']}")
+                console.print(f"\n[bold]{result['test_name']}[/bold]")
+                console.print("-" * 40)
+                
+                if result["status"] == "completed":
+                    console.print("[green]✓ Passed[/green]")
+                    if "details" in result:
+                        for k, v in result["details"].items():
+                            if isinstance(v, dict):
+                                console.print(f"{k}:")
+                                for sub_k, sub_v in v.items():
+                                    console.print(f"  {sub_k}: {sub_v}")
+                            else:
+                                console.print(f"{k}: {v}")
+                else:
+                    console.print(f"[red]✗ Failed[/red]")
+                    if "details" in result and "error" in result["details"]:
+                        error_msg = str(result["details"]["error"])
+                        console.print(f"[red]Error: {error_msg}[/red]")
+                        
+                        # Show suggestions based on error type
+                        if "timeout" in error_msg.lower():
+                            console.print("\n[yellow]Suggestion: The server might be slow. Try:[/yellow]")
+                            console.print("1. Check your internet connection")
+                            console.print("2. Try a different image URL")
+                            console.print("3. Run the test again with a longer timeout")
+                        elif "certificate" in error_msg.lower():
+                            console.print("\n[yellow]Suggestion: SSL/Certificate issue. Try:[/yellow]")
+                            console.print("1. Use an HTTPS URL")
+                            console.print("2. Check if the website's SSL certificate is valid")
+                        elif "dns" in error_msg.lower():
+                            console.print("\n[yellow]Suggestion: DNS resolution failed. Try:[/yellow]")
+                            console.print("1. Check if the URL is correct")
+                            console.print("2. Check if the website is accessible")
+                        elif "connection" in error_msg.lower():
+                            console.print("\n[yellow]Suggestion: Connection failed. Try:[/yellow]")
+                            console.print("1. Check your internet connection")
+                            console.print("2. Check if the website is accessible")
+                            console.print("3. Try a different image URL")
             
             # Ask if they want to run another test
-            if questionary.confirm("Would you like to run another test?").ask():
+            if questionary.confirm("\nWould you like to run another test?").ask():
                 main()
             else:
                 console.print("\n[bold blue]Thank you for using LUMA Diagnostics![/bold blue]")
