@@ -15,6 +15,7 @@ from . import diagnostics
 from . import utils
 from . import settings
 import datetime
+import re
 
 console = Console()
 
@@ -299,6 +300,27 @@ def get_generation_params(test_type: str) -> Dict[str, Any]:
     SETTINGS.set_last_params(params)
     return params
 
+def sanitize_filename(text: str) -> str:
+    """Convert text to filesystem-friendly format."""
+    # Replace spaces and special chars with underscores
+    sanitized = re.sub(r'[^\w\s-]', '_', text)
+    sanitized = re.sub(r'[-\s]+', '_', sanitized)
+    return sanitized.strip('_').lower()
+
+def create_case_id(customer: str, title: str) -> str:
+    """Create a case ID from customer name and title."""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d")
+    
+    # If no customer name provided, use 'no_customer'
+    customer = customer.strip() if customer.strip() else "no_customer"
+    
+    # Sanitize both parts
+    customer_part = sanitize_filename(customer)
+    title_part = sanitize_filename(title)
+    
+    # Combine with timestamp
+    return f"{customer_part}-{title_part}-{timestamp}"
+
 def create_case(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any], test_results: Dict[str, Any]) -> Optional[str]:
     """Create a case file with test results and additional information. Returns case directory if created."""
     try:
@@ -317,7 +339,7 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
             {
                 "type": "text",
                 "name": "customer",
-                "message": "Customer name (optional):",
+                "message": "Customer name or organization:",
             },
             {
                 "type": "text",
@@ -341,16 +363,17 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
         # Extract priority level
         case_info['priority'] = case_info['priority'].split(' - ')[0]
         
-        # Create case directory if it doesn't exist
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        case_dir = os.path.join("cases", "active", "case001")  # Fixed case directory
+        # Create case ID and directory
+        case_id = create_case_id(case_info['customer'], case_info['title'])
+        case_dir = os.path.join("cases", "active", case_id)
         os.makedirs(case_dir, exist_ok=True)
         
-        # Create test results files with timestamp
-        results_file_base = os.path.join(case_dir, f"test_results_{timestamp}")
+        # Create test results files
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_base = os.path.join(case_dir, f"test_{timestamp}")
         
         # Save JSON results
-        with open(f"{results_file_base}.json", "w") as f:
+        with open(f"{results_base}.json", "w") as f:
             json.dump({
                 "timestamp": timestamp,
                 "image_url": image_url,
@@ -360,7 +383,7 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
             }, f, indent=2)
         
         # Save human-readable results
-        with open(f"{results_file_base}.txt", "w") as f:
+        with open(f"{results_base}.txt", "w") as f:
             f.write(f"Test Results - {timestamp}\n")
             f.write("=" * 50 + "\n\n")
             f.write(f"Image URL: {image_url}\n")
@@ -382,16 +405,14 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
                 else:
                     f.write(f"- {result}\n")
         
-        # Update or create case file
-        case_file = os.path.join(case_dir, "CASE_001.md")
-        is_new_case = not os.path.exists(case_file)
-        
-        if is_new_case:
-            # Create new case file if it doesn't exist
+        # Create or update case file
+        case_file = os.path.join(case_dir, "README.md")  # Using README.md for better GitHub/GitLab visibility
+        if not os.path.exists(case_file):
+            # Create new case file
             with open(case_file, "w") as f:
                 f.write(f"# {case_info['title']}\n\n")
                 f.write("## Case Information\n\n")
-                f.write("- **Case ID**: case001\n")
+                f.write(f"- **Case ID**: {case_id}\n")
                 f.write(f"- **Created**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"- **Priority**: {case_info['priority']}\n")
                 if case_info['customer']:
@@ -420,23 +441,19 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
                     f.write(f"- {result}\n")
                 f.write("\n")
             
-            f.write(f"\nDetailed results: [JSON]({results_file_base}.json) | [Text]({results_file_base}.txt)\n")
+            f.write(f"\nDetailed results: [JSON](test_{timestamp}.json) | [Text](test_{timestamp}.txt)\n")
         
         # Print success messages with full paths
         console.print("\n[green]Case Information:[/green]")
         abs_case_dir = os.path.abspath(case_dir)
         abs_case_file = os.path.abspath(case_file)
-        abs_results_base = os.path.abspath(results_file_base)
+        abs_results_base = os.path.abspath(results_base)
         
-        if is_new_case:
-            console.print(f"[green]Created new case:[/green] {abs_case_file}")
-        else:
-            console.print(f"[green]Updated existing case:[/green] {abs_case_file}")
-            
-        console.print(f"[green]Created test results:[/green]")
+        console.print(f"[green]Case folder:[/green] {abs_case_dir}")
+        console.print(f"[green]Case file:[/green] {abs_case_file}")
+        console.print(f"\n[green]Test Results:[/green]")
         console.print(f"- JSON: {abs_results_base}.json")
         console.print(f"- Text: {abs_results_base}.txt")
-        console.print(f"\nAll case files are in: {abs_case_dir}")
         
         return case_dir
         
