@@ -13,13 +13,24 @@ from . import generation_tests
 
 def run_with_config(case_id: Optional[str] = None,
                    config_path: Optional[str] = None,
-                   output_dir: Optional[str] = None) -> Tuple[str, str]:
-    """Run diagnostics with configuration."""
-    # Get test image URL from environment
-    test_image_url = os.environ.get("TEST_IMAGE_URL")
-    
-    # Run basic connectivity and image tests
+                   image_url: Optional[str] = None,
+                   output_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Run diagnostics with the given configuration."""
     results = []
+    
+    # Load configuration
+    config = {}
+    if config_path:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    if image_url:
+        config["TEST_IMAGE_URL"] = image_url
+    
+    # Get API key if available
+    api_key = config.get("LUMA_API_KEY")
+    test_image_url = config.get("TEST_IMAGE_URL", os.environ.get("TEST_IMAGE_URL"))
+    
+    # Run basic tests
     if test_image_url:
         results.extend([
             tests.test_public_access(test_image_url),
@@ -30,10 +41,16 @@ def run_with_config(case_id: Optional[str] = None,
         ])
     
     # Run API tests if key available
-    api_key = os.environ.get("LUMA_API_KEY")
     if api_key:
         api_results = api_tests.run_api_tests(api_key, test_image_url)
         results.extend(api_results)
+    
+    # Generate output paths
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    if not output_dir:
+        output_dir = config.get("OUTPUT_DIR", os.path.join(utils.get_config_dir(), "results"))
+    if case_id:
+        output_dir = os.path.join(output_dir, case_id)
     
     # Run generation tests
     if api_key:
@@ -55,14 +72,7 @@ def run_with_config(case_id: Optional[str] = None,
                 "error": str(e)
             })
     
-    # Generate output paths
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    if not output_dir:
-        output_dir = os.path.join(utils.get_config_dir(), "results")
-    if case_id:
-        output_dir = os.path.join(output_dir, case_id)
-    
-    # Create output directory
+    # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
     
     # Save results
@@ -106,4 +116,4 @@ def run_with_config(case_id: Optional[str] = None,
             
             f.write("\n")
     
-    return json_file, text_file
+    return results
