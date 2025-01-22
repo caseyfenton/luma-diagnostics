@@ -4,9 +4,9 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
-import uuid
 from typing import Dict, List, Optional
 
+from . import utils
 from .system_info import get_system_info
 from .messages import print_info, print_success, print_error
 
@@ -24,7 +24,7 @@ class Case:
     def create(cls, title: str, description: str) -> 'Case':
         """Create a new case."""
         return cls(
-            case_id=str(uuid.uuid4()),
+            case_id=utils.generate_id(),
             title=title,
             description=description,
             created_at=datetime.now().isoformat()
@@ -56,7 +56,7 @@ class CaseManager:
     """Manages diagnostic cases."""
     
     def __init__(self):
-        self.cases_dir = Path.home() / ".luma" / "cases"
+        self.cases_dir = utils.get_case_config_dir() / "cases"
         self.cases_dir.mkdir(parents=True, exist_ok=True)
         self.current_case: Optional[Case] = None
     

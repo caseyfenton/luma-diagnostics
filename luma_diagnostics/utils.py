@@ -167,7 +167,7 @@ def get_program_files():
 
 def get_case_config_dir() -> Path:
     """Get the configuration directory for LUMA diagnostics."""
-    config_dir = Path.home() / ".luma"
+    config_dir = Path.home() / ".luma-diagnostics"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 
@@ -193,6 +193,6 @@ def get_case_data_dir() -> Path:
 
 def get_case_dir(case_id: str) -> Path:
     """Get the directory for a specific case."""
-    case_dir = get_case_config_dir() / "cases" / case_id
+    case_dir = get_case_config_dir() / "cases"
     case_dir.mkdir(parents=True, exist_ok=True)
     return case_dir
