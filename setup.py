@@ -6,6 +6,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
+test_requirements = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pillow>=8.3.1",  # For image validation
+]
+
 setup(
     name="luma-diagnostics",
     version="0.1.0",
@@ -29,6 +35,9 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=requirements,
+    extras_require={
+        "test": test_requirements,
+    },
     entry_points={
         "console_scripts": [
             "luma-diagnostics=luma_diagnostics.cli:main",
