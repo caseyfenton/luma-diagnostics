@@ -6,6 +6,32 @@ import platform
 import subprocess
 from pathlib import Path
 
+def get_platform_info():
+    """Get detailed platform information."""
+    info = {
+        "system": platform.system(),
+        "release": platform.release(),
+        "version": platform.version(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "python_version": platform.python_version(),
+        "architecture": platform.architecture()[0],
+        "node": platform.node()
+    }
+    
+    # Add Windows-specific information
+    if platform.system() == "Windows":
+        info["win32_edition"] = platform.win32_edition()
+    
+    # Add Unix-specific information
+    elif os.name == "posix":
+        try:
+            info["uname"] = " ".join(platform.uname())
+        except:
+            pass
+    
+    return info
+
 def get_config_dir():
     """Get the appropriate configuration directory for the current platform."""
     if platform.system() == "Windows":

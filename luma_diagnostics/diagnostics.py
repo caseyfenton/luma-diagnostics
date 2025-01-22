@@ -33,11 +33,13 @@ def run_with_config(case_id=None, config_path=None, output_dir=None):
     
     # Add case information if available
     if case_id:
-        results["case_info"] = {
+        case_info = {
+            "test_name": "Case Information",
             "case_id": case_id,
             "timestamp": timestamp,
             "platform": utils.get_platform_info()
         }
+        results.insert(0, case_info)
     
     # Save results
     save_results(results, json_file, text_file)
@@ -49,9 +51,27 @@ def run_all_tests():
     # Import the original test functions
     from .tests import (
         test_public_access,
-        test_ssl_cert,
-        test_redirects,
-        # ... import other test functions
+        test_cert_validation,
+        test_redirect,
+        test_headers_content,
+        test_image_validity,
+        test_luma_json_request,
+        test_rate_limit,
+        test_http_head,
+        test_latency_timeout,
+        test_dns_records,
+        test_sni_mismatch,
+        test_traceroute,
+        test_cors_check,
+        test_firewall_ip_blocklist,
+        test_hsts,
+        test_user_agent_variation,
+        test_image_metadata,
+        test_content_encoding,
+        test_api_auth,
+        test_proxy_detection,
+        test_advanced_image_analysis,
+        test_enhanced_network_diagnostics
     )
     
     results = []
@@ -62,10 +82,35 @@ def run_all_tests():
     # Run tests
     results.extend([
         test_public_access(url),
-        test_ssl_cert(url),
-        test_redirects(url),
-        # ... add other tests
+        test_cert_validation(url),
+        test_redirect(url),
+        test_headers_content(url),
+        test_image_validity(url),
+        test_http_head(url),
+        test_latency_timeout(url),
+        test_dns_records(url),
+        test_sni_mismatch(url),
+        test_traceroute(url),
+        test_cors_check(url),
+        test_firewall_ip_blocklist(url),
+        test_hsts(url),
+        test_user_agent_variation(url),
+        test_image_metadata(url),
+        test_content_encoding(url),
+        test_proxy_detection(url),
+        test_advanced_image_analysis(url),
+        test_enhanced_network_diagnostics(url)
     ])
+    
+    # Run API tests if credentials available
+    api_url = os.environ.get("LUMA_API_URL")
+    bearer_token = os.environ.get("LUMA_API_KEY")
+    if api_url and bearer_token:
+        results.extend([
+            test_luma_json_request(api_url, bearer_token, url),
+            test_rate_limit(api_url, bearer_token, url),
+            test_api_auth(api_url, bearer_token)
+        ])
     
     return results
 
