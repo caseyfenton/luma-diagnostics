@@ -40,16 +40,18 @@ def get_image_url() -> str:
     """Get the image URL from the user."""
     last_url = SETTINGS.get_last_image_url()
     
+    # Build choices dynamically
+    choices = ["Enter a new URL"]
+    if last_url != settings.Settings.DEFAULT_TEST_IMAGE:  # Only add if there's a real last tested image
+        choices.append(f"Use last tested image ({last_url})")
+    choices.append(f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})")
+    
     questions = [
         {
             "type": "select",
             "name": "url_source",
             "message": "Which image would you like to test?",
-            "choices": [
-                "Enter a new URL",
-                f"Use last tested image ({last_url})",
-                f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})"
-            ]
+            "choices": choices
         },
         {
             "type": "text",

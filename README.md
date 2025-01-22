@@ -72,6 +72,33 @@ pip install luma-diagnostics
    pip install -r requirements.txt
    ```
 
+## Quick Start
+
+The easiest way to get started is to use our interactive wizard:
+
+```bash
+luma-diagnostics --wizard
+```
+
+The wizard will guide you through:
+- Selecting an image to test (including a sample image)
+- Setting up your API key (if you have one)
+- Choosing which tests to run
+- Understanding the results
+
+For more advanced usage, you can also use the command line interface:
+
+```bash
+# Test a specific image
+luma-diagnostics --image-url https://example.com/image.jpg
+
+# Run a specific test case
+luma-diagnostics --case my_test_case
+
+# Specify a configuration file
+luma-diagnostics --config config.json
+```
+
 ## Usage
 
 ### Interactive Wizard Mode (Recommended for New Users)
@@ -87,33 +114,6 @@ The wizard will:
 2. Help you choose which tests to run
 3. Explain the results in a clear, human-readable format
 4. Provide suggestions for next steps
-
-### Quick Start
-
-1. Install the package:
-   ```bash
-   pip install luma-diagnostics
-   ```
-
-2. Set up your environment:
-   ```bash
-   # Copy the example environment file
-   cp env.example .env
-   
-   # Edit .env with your settings
-   # Required: TEST_IMAGE_URL
-   # Optional but recommended: LUMA_API_KEY
-   nano .env
-   ```
-
-3. Run diagnostics:
-   ```bash
-   # Basic test with just an image URL
-   luma-diagnostics --image-url https://example.com/image.jpg
-
-   # Full test suite with API key
-   luma-diagnostics --case my_test_case
-   ```
 
 ### Using Generation Tests
 
