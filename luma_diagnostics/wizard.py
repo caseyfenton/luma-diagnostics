@@ -51,7 +51,7 @@ def get_image_url() -> Optional[str]:
         choices = ["Enter a new URL"]
         if last_url != settings.Settings.DEFAULT_TEST_IMAGE:  # Only add if there's a real last tested image
             choices.append(f"Use last tested image ({last_url})")
-        choices.append(f"Use LUMA sample image ({settings.Settings.DEFAULT_TEST_IMAGE})")
+        choices.append("Use LUMA sample image (teddy bear)")
         
         questions = [
             {

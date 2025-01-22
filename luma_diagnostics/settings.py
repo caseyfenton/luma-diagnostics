@@ -12,7 +12,7 @@ load_dotenv(os.path.expanduser("~/.env"))
 class Settings:
     """Manages persistent settings and defaults."""
     
-    DEFAULT_TEST_IMAGE = "https://raw.githubusercontent.com/lumalabs/luma-sample-data/main/test_image.jpg"
+    DEFAULT_TEST_IMAGE = "https://files.readme.io/35fc85755a99eba889ebd196ed5891b11e52813393249c334c377b6c30e8f2f3-teddy.jpg"
     SETTINGS_DIR = os.path.expanduser("~/.config/luma-diagnostics")
     SETTINGS_FILE = os.path.join(SETTINGS_DIR, "settings.json")
     
