@@ -4,7 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+    requirements = [
+        "requests>=2.25.1",
+        "python-dotenv>=0.19.0",
+        "pillow>=8.3.1",  # For image validation
+        "dnspython>=2.1.0",  # For DNS lookups
+        "certifi>=2021.5.30",  # For SSL certificate validation
+        "questionary>=1.10.0",  # For interactive prompts
+        "rich>=10.6.0",  # For console output formatting
+        "psutil>=5.8.0",  # For system information collection
+    ]
 
 test_requirements = [
     "pytest>=7.0.0",
