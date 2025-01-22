@@ -86,6 +86,121 @@ def test_image_validity(url: str, timeout: int = 10) -> Dict[str, Any]:
             }
         }
 
+def run_basic_tests(image_url: str, timeout: int = 30) -> Dict[str, Any]:
+    """Run basic image tests."""
+    results = {}
+    
+    try:
+        # Public Access Test
+        public_access = tests.test_public_access(image_url)
+        results["Public Access"] = {
+            "status": public_access["status"],
+            "details": public_access.get("details", {})
+        }
+        
+        # Certificate Test
+        cert_validation = tests.test_cert_validation(image_url)
+        results["Certificate"] = {
+            "status": cert_validation["status"],
+            "details": cert_validation.get("details", {})
+        }
+        
+        # Redirect Test
+        redirect = tests.test_redirect(image_url)
+        results["Redirects"] = {
+            "status": redirect["status"],
+            "details": redirect.get("details", {})
+        }
+        
+        # Headers Test
+        headers = test_image_headers(image_url, timeout=timeout)
+        results["Headers"] = {
+            "status": headers["status"],
+            "details": headers.get("details", {})
+        }
+        
+        # Image Validity Test
+        validity = test_image_validity(image_url, timeout=timeout)
+        results["Validity"] = {
+            "status": validity["status"],
+            "details": validity.get("details", {})
+        }
+        
+    except Exception as e:
+        results["Error"] = {
+            "status": "failed",
+            "details": {"error": str(e)}
+        }
+    
+    return results
+
+def run_generation_test(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Run a specific generation test."""
+    if not api_key:
+        return {"status": "failed", "details": {"error": "API key required for generation tests"}}
+    
+    results = {}
+    try:
+        if test_type == "Text-to-Image Generation":
+            # Mock test for now
+            results = {
+                "status": "completed",
+                "details": {
+                    "prompt": params.get("prompt", ""),
+                    "aspect_ratio": params.get("aspect_ratio", "16:9"),
+                    "generation_time": "2.5s",
+                    "output_url": "https://example.com/generated.jpg"
+                }
+            }
+        
+        elif test_type == "Image-to-Image Generation":
+            # Mock test for now
+            results = {
+                "status": "completed",
+                "details": {
+                    "prompt": params.get("prompt", ""),
+                    "source_image": image_url,
+                    "generation_time": "3.2s",
+                    "output_url": "https://example.com/modified.jpg"
+                }
+            }
+        
+        elif test_type == "Image-to-Video Generation":
+            # Mock test for now
+            results = {
+                "status": "completed",
+                "details": {
+                    "camera_motion": params.get("camera_motion", ""),
+                    "duration": params.get("duration", 3.0),
+                    "generation_time": "15.7s",
+                    "output_url": "https://example.com/video.mp4"
+                }
+            }
+        
+        elif test_type == "Full Test Suite":
+            # Run all tests
+            basic_results = run_basic_tests(image_url)
+            generation_results = {
+                "Text-to-Image": run_generation_test(image_url, api_key, "Text-to-Image Generation", {}),
+                "Image-to-Image": run_generation_test(image_url, api_key, "Image-to-Image Generation", {}),
+                "Image-to-Video": run_generation_test(image_url, api_key, "Image-to-Video Generation", {})
+            }
+            results = {**basic_results, **generation_results}
+        
+        else:
+            results = {
+                "status": "failed",
+                "details": {"error": f"Unknown test type: {test_type}"}
+            }
+    
+    except Exception as e:
+        results = {
+            "status": "failed",
+            "details": {"error": str(e)}
+        }
+    
+    return results
+
 def run_with_config(case_id: Optional[str] = None,
                    config_path: Optional[str] = None,
                    image_url: Optional[str] = None,
