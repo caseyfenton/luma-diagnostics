@@ -36,7 +36,7 @@ def run_with_config(case_id: Optional[str] = None,
             tests.test_public_access(test_image_url),
             tests.test_cert_validation(test_image_url),
             tests.test_redirect(test_image_url),
-            tests.test_headers_content(test_image_url),
+            tests.test_headers_and_content(test_image_url),
             tests.test_image_validity(test_image_url)
         ])
     
@@ -63,13 +63,16 @@ def run_with_config(case_id: Optional[str] = None,
             results.append({
                 "test_name": "Generation Tests",
                 "status": "completed",
-                "report": generation_report
+                "details": generation_report
             })
         except Exception as e:
             results.append({
                 "test_name": "Generation Tests",
                 "status": "failed",
-                "error": str(e)
+                "details": {
+                    "error": str(e),
+                    "info": "Failed to run generation tests"
+                }
             })
     
     # Ensure output directory exists
@@ -79,12 +82,16 @@ def run_with_config(case_id: Optional[str] = None,
     json_file = os.path.join(output_dir, f"diagnostic_results_{timestamp}.json")
     text_file = os.path.join(output_dir, f"diagnostic_results_{timestamp}.txt")
     
-    # Write JSON results
-    with open(json_file, 'w') as f:
-        json.dump(results, f, indent=2)
+    # Save JSON results
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "timestamp": timestamp,
+            "case_id": case_id,
+            "results": results
+        }, f, indent=2)
     
-    # Write human-readable results
-    with open(text_file, 'w') as f:
+    # Save text results
+    with open(text_file, "w", encoding="utf-8") as f:
         f.write("LUMA API Diagnostics Results\n")
         f.write("=" * 30 + "\n\n")
         
@@ -93,27 +100,25 @@ def run_with_config(case_id: Optional[str] = None,
         f.write(f"Timestamp: {timestamp}\n\n")
         
         for result in results:
-            f.write(f"Test: {result.get('test_name', 'Unknown Test')}\n")
+            f.write(f"Test: {result['test_name']}\n")
             f.write("-" * 40 + "\n")
             
-            if result.get('error'):
-                f.write(f"Error: {result['error']}\n")
-            else:
-                for key, value in result.items():
-                    if key not in ['test_name', 'response']:
-                        f.write(f"{key}: {value}\n")
-                
-                if result.get('response'):
-                    f.write("\nResponse Summary:\n")
-                    try:
-                        if isinstance(result['response'], dict):
-                            for key, value in result['response'].items():
-                                f.write(f"  {key}: {value}\n")
-                        else:
-                            f.write(f"  {str(result['response'])}\n")
-                    except Exception as e:
-                        f.write(f"  Error formatting response: {str(e)}\n")
+            if "details" in result:
+                for k, v in result["details"].items():
+                    f.write(f"{k}: {v}\n")
             
             f.write("\n")
+    
+    # Add output files to results
+    results.append({
+        "test_name": "Output Files",
+        "status": "completed",
+        "details": {
+            "output_files": [
+                json_file,
+                text_file
+            ]
+        }
+    })
     
     return results

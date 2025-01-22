@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+from typing import Dict, Any
 
 def load_case_config(case_id=None):
     """Load configuration from environment file."""
@@ -61,153 +62,140 @@ def get_case_info():
         "run_timestamp": datetime.now().isoformat()
     }
 
-def test_public_access(url):
-    """
-    1. Public Access / DNS resolution
-       - Attempt DNS resolution
-       - Attempt basic GET request
-    """
-    results = {
+def test_public_access(url: str) -> Dict[str, Any]:
+    """Test if the URL is publicly accessible."""
+    try:
+        response = requests.head(url, allow_redirects=True)
+        dns_resolved = True
+        reachable = response.status_code == 200
+        info = f"Received status {response.status_code}."
+    except requests.exceptions.ConnectionError:
+        dns_resolved = False
+        reachable = False
+        info = "Failed to connect to server."
+    
+    return {
         "test_name": "Public Access",
-        "url": url,
-        "dns_resolved": False,
-        "reachable": False,
-        "info": "",
+        "status": "completed",
+        "details": {
+            "url": url,
+            "dns_resolved": dns_resolved,
+            "reachable": reachable,
+            "info": info
+        }
     }
+
+def test_cert_validation(url: str) -> Dict[str, Any]:
+    """Test SSL/TLS certificate validation."""
     try:
-        parsed = urlparse(url)
-        socket.gethostbyname(parsed.hostname)
-        results["dns_resolved"] = True
-    except Exception as e:
-        results["info"] = f"DNS resolution failed: {str(e)}"
-        return results
-
-    # If DNS is resolved, do a basic request
-    try:
-        resp = requests.get(url, timeout=10)
-        if resp.status_code == 200:
-            results["reachable"] = True
-        else:
-            results["info"] = f"Received status {resp.status_code}."
-    except Exception as e:
-        results["info"] = f"HTTP GET failed: {str(e)}"
-
-    return results
-
-
-def test_cert_validation(url):
-    """
-    2. HTTPS Certificate Validation:
-       - Attempt to verify SSL certificate chain with 'certifi' if available.
-    """
-    results = {
+        response = requests.head(url, verify=True)
+        cert_valid = True
+        info = f"Success. Status code: {response.status_code}"
+    except requests.exceptions.SSLError:
+        cert_valid = False
+        info = "SSL certificate validation failed."
+    except requests.exceptions.RequestException as e:
+        cert_valid = False
+        info = f"Request failed: {str(e)}"
+    
+    return {
         "test_name": "Cert Validation",
-        "url": url,
-        "cert_valid": False,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "cert_valid": cert_valid,
+            "info": info
+        }
     }
+
+def test_redirect(url: str) -> Dict[str, Any]:
+    """Test URL redirection."""
     try:
-        import certifi
-        ca_bundle = certifi.where()
-    except ImportError:
-        ca_bundle = True  # fallback: system default
-
-    try:
-        r = requests.get(url, timeout=10, verify=ca_bundle)
-        results["cert_valid"] = True
-        results["info"] = f"Success. Status code: {r.status_code}"
-    except requests.exceptions.SSLError as ssle:
-        results["info"] = f"SSL Error: {str(ssle)}"
-    except Exception as e:
-        results["info"] = f"Connection Error: {str(e)}"
-    return results
-
-
-def test_redirect(url):
-    """
-    3. Redirect Check
-       - Follow redirects up to default limit
-       - Record final URL
-    """
-    results = {
+        response = requests.head(url, allow_redirects=True)
+        is_redirecting = len(response.history) > 0
+        final_url = response.url
+        info = f"Redirected {len(response.history)} times." if is_redirecting else ""
+    except requests.exceptions.RequestException:
+        is_redirecting = False
+        final_url = url
+        info = "Failed to check redirects."
+    
+    return {
         "test_name": "Redirect Check",
-        "url": url,
-        "is_redirecting": False,
-        "final_url": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "is_redirecting": is_redirecting,
+            "final_url": final_url,
+            "info": info
+        }
     }
+
+def test_headers_and_content(url: str) -> Dict[str, Any]:
+    """Test response headers and content."""
     try:
-        with requests.Session() as s:
-            resp = s.get(url, allow_redirects=True, timeout=10)
-            results["final_url"] = resp.url
-            if len(resp.history) > 0:
-                results["is_redirecting"] = True
-                chain_statuses = [r.status_code for r in resp.history]
-                results["info"] = f"Redirect chain: {chain_statuses}"
-    except Exception as e:
-        results["info"] = f"Redirect test error: {str(e)}"
-    return results
-
-
-def test_headers_content(url):
-    """
-    4. Headers & Content-Length check
-    """
-    results = {
+        response = requests.get(url)
+        content_type = response.headers.get('content-type', 'unknown')
+        content_length_header = int(response.headers.get('content-length', 0))
+        content_length_actual = len(response.content)
+        info = ""
+    except requests.exceptions.RequestException:
+        content_type = "unknown"
+        content_length_header = 0
+        content_length_actual = 0
+        info = "Failed to get headers and content."
+    
+    return {
         "test_name": "Headers and Content",
-        "url": url,
-        "content_type": None,
-        "content_length_header": None,
-        "content_length_actual": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "content_type": content_type,
+            "content_length_header": content_length_header,
+            "content_length_actual": content_length_actual,
+            "info": info
+        }
     }
+
+def test_image_validity(url: str) -> Dict[str, Any]:
+    """Test if the URL points to a valid image."""
     try:
-        resp = requests.get(url, stream=True, timeout=10)
-        results["content_type"] = resp.headers.get("Content-Type")
-        results["content_length_header"] = resp.headers.get("Content-Length")
-        content = resp.content
-        results["content_length_actual"] = len(content)
-    except Exception as e:
-        results["info"] = f"Failed to get headers/content: {str(e)}"
-
-    return results
-
-
-def test_image_validity(url):
-    """
-    5. Basic File Validity as an Image
-       - Simple JPEG signature check
-    """
-    results = {
+        response = requests.get(url)
+        content = response.content
+        
+        # Check JPEG signature
+        is_jpeg = content.startswith(b'\xFF\xD8\xFF')
+        info = "" if is_jpeg else "Does not match JPEG signature. Possibly another format or corrupted."
+        
+    except requests.exceptions.RequestException:
+        is_jpeg = False
+        info = "Failed to download image."
+    
+    return {
         "test_name": "Image Validity",
-        "url": url,
-        "is_jpeg_signature": False,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "is_jpeg_signature": is_jpeg,
+            "info": info
+        }
     }
-    try:
-        resp = requests.get(url, timeout=10)
-        data = resp.content
-        if len(data) > 4 and data[0] == 0xFF and data[1] == 0xD8 and data[-2] == 0xFF and data[-1] == 0xD9:
-            results["is_jpeg_signature"] = True
-        else:
-            results["info"] = "Does not match JPEG signature. Possibly another format or corrupted."
-    except Exception as e:
-        results["info"] = f"Could not retrieve or parse image: {str(e)}"
-    return results
 
-
-def test_luma_json_request(api_url, bearer_token, image_url):
+def test_luma_json_request(api_url: str, bearer_token: str, image_url: str) -> Dict[str, Any]:
     """
     6. JSON Request Structure Test
        - Attempt a minimal real or mock call to the LUMA endpoint
     """
     results = {
         "test_name": "LUMA JSON Request",
-        "endpoint": api_url,
-        "request_success": False,
-        "status_code": None,
-        "response_body": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "endpoint": api_url,
+            "request_success": False,
+            "status_code": None,
+            "response_body": None,
+            "info": ""
+        }
     }
     headers = {
         "accept": "application/json",
@@ -229,32 +217,34 @@ def test_luma_json_request(api_url, bearer_token, image_url):
 
     try:
         resp = requests.post(api_url, headers=headers, json=payload, timeout=10)
-        results["status_code"] = resp.status_code
+        results["details"]["status_code"] = resp.status_code
         try:
-            results["response_body"] = resp.json()
+            results["details"]["response_body"] = resp.json()
         except:
-            results["response_body"] = resp.text
+            results["details"]["response_body"] = resp.text
 
         if resp.status_code in (200, 201, 202):
-            results["request_success"] = True
+            results["details"]["request_success"] = True
         else:
-            results["info"] = f"Non-2xx status code {resp.status_code}"
+            results["details"]["info"] = f"Non-2xx status code {resp.status_code}"
     except Exception as e:
-        results["info"] = f"Request/connection error: {str(e)}"
+        results["details"]["info"] = f"Request/connection error: {str(e)}"
 
     return results
 
-
-def test_rate_limit(api_url, bearer_token, image_url, attempts=5):
+def test_rate_limit(api_url: str, bearer_token: str, image_url: str, attempts: int = 5) -> Dict[str, Any]:
     """
     7. Rate Limit / Repeated Calls Test
     """
     results = {
         "test_name": "Rate Limit Test",
-        "endpoint": api_url,
-        "num_attempts": attempts,
-        "responses": [],
-        "info": ""
+        "status": "completed",
+        "details": {
+            "endpoint": api_url,
+            "num_attempts": attempts,
+            "responses": [],
+            "info": ""
+        }
     }
     headers = {
         "accept": "application/json",
@@ -283,33 +273,34 @@ def test_rate_limit(api_url, bearer_token, image_url, attempts=5):
                 attempt_info["body"] = resp.text
         except Exception as e:
             attempt_info["body"] = f"Connection/Request Error: {str(e)}"
-        results["responses"].append(attempt_info)
+        results["details"]["responses"].append(attempt_info)
         time.sleep(1)
     return results
 
-
-def test_http_head(url):
+def test_http_head(url: str) -> Dict[str, Any]:
     """
     8. HEAD Request Test
        - Some servers may behave differently for HEAD vs GET.
     """
     results = {
         "test_name": "HTTP HEAD Check",
-        "url": url,
-        "status_code": None,
-        "headers": {},
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "status_code": None,
+            "headers": {},
+            "info": ""
+        }
     }
     try:
         resp = requests.head(url, timeout=10)
-        results["status_code"] = resp.status_code
-        results["headers"] = dict(resp.headers)
+        results["details"]["status_code"] = resp.status_code
+        results["details"]["headers"] = dict(resp.headers)
     except Exception as e:
-        results["info"] = f"HEAD request failed: {str(e)}"
+        results["details"]["info"] = f"HEAD request failed: {str(e)}"
     return results
 
-
-def test_latency_timeout(url):
+def test_latency_timeout(url: str) -> Dict[str, Any]:
     """
     9. Latency & Basic Timeout Check
        - Measures round-trip time for a GET.
@@ -317,39 +308,44 @@ def test_latency_timeout(url):
     """
     results = {
         "test_name": "Latency & Timeout",
-        "url": url,
-        "latency_seconds": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "latency_seconds": None,
+            "info": ""
+        }
     }
     start = time.time()
     try:
         # We'll do a GET with a somewhat strict timeout
         requests.get(url, timeout=5)
         end = time.time()
-        results["latency_seconds"] = round(end - start, 3)
+        results["details"]["latency_seconds"] = round(end - start, 3)
     except Exception as e:
         end = time.time()
-        results["latency_seconds"] = round(end - start, 3)
-        results["info"] = f"Request possibly timed out or had an error: {str(e)}"
+        results["details"]["latency_seconds"] = round(end - start, 3)
+        results["details"]["info"] = f"Request possibly timed out or had an error: {str(e)}"
     return results
 
-
-def test_dns_records(url):
+def test_dns_records(url: str) -> Dict[str, Any]:
     """
     10. DNS Records Check (A and AAAA)
        - Use dnspython if available. If not, we do a simplified check.
     """
     results = {
         "test_name": "DNS Records Check",
-        "url": url,
-        "a_records": [],
-        "aaaa_records": [],
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "a_records": [],
+            "aaaa_records": [],
+            "info": ""
+        }
     }
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
-        results["info"] = "Could not parse hostname."
+        results["details"]["info"] = "Could not parse hostname."
         return results
 
     try:
@@ -359,27 +355,26 @@ def test_dns_records(url):
         DNS_AVAILABLE = False
 
     if not DNS_AVAILABLE:
-        results["info"] = "dnspython not installed, limited DNS checks."
+        results["details"]["info"] = "dnspython not installed, limited DNS checks."
         return results
 
     try:
         answer_a = dns.resolver.resolve(hostname, "A")
         for rr in answer_a:
-            results["a_records"].append(rr.to_text())
+            results["details"]["a_records"].append(rr.to_text())
     except Exception as e:
-        results["info"] += f"(A record) {str(e)}; "
+        results["details"]["info"] += f"(A record) {str(e)}; "
 
     try:
         answer_aaaa = dns.resolver.resolve(hostname, "AAAA")
         for rr in answer_aaaa:
-            results["aaaa_records"].append(rr.to_text())
+            results["details"]["aaaa_records"].append(rr.to_text())
     except Exception as e:
-        results["info"] += f"(AAAA record) {str(e)}; "
+        results["details"]["info"] += f"(AAAA record) {str(e)}; "
 
     return results
 
-
-def test_sni_mismatch(url):
+def test_sni_mismatch(url: str) -> Dict[str, Any]:
     """
     11. SNI Mismatch Check
        - Attempt direct SSL socket to see if the certificate CN/SAN matches the domain.
@@ -387,14 +382,17 @@ def test_sni_mismatch(url):
     """
     results = {
         "test_name": "SNI Mismatch Check",
-        "url": url,
-        "sni_match": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "sni_match": None,
+            "info": ""
+        }
     }
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
-        results["info"] = "No hostname found."
+        results["details"]["info"] = "No hostname found."
         return results
 
     context = ssl.create_default_context()
@@ -404,17 +402,16 @@ def test_sni_mismatch(url):
                 cert = ssock.getpeercert()
                 # Raises an exception if mismatch
                 ssl.match_hostname(cert, hostname)
-                results["sni_match"] = True
+                results["details"]["sni_match"] = True
     except ssl.CertificateError as ce:
-        results["sni_match"] = False
-        results["info"] = f"Certificate mismatch: {str(ce)}"
+        results["details"]["sni_match"] = False
+        results["details"]["info"] = f"Certificate mismatch: {str(ce)}"
     except Exception as e:
-        results["info"] = f"Connection/SSL error: {str(e)}"
+        results["details"]["info"] = f"Connection/SSL error: {str(e)}"
 
     return results
 
-
-def test_traceroute(url):
+def test_traceroute(url: str) -> Dict[str, Any]:
     """
     12. Basic Traceroute (Placeholder)
        - Typically done via subprocess calls to 'traceroute' or 'ping -r'.
@@ -423,9 +420,12 @@ def test_traceroute(url):
     """
     results = {
         "test_name": "Traceroute",
-        "url": url,
-        "trace_output": [],
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "trace_output": [],
+            "info": ""
+        }
     }
     # Real traceroute approach typically requires external command or raw sockets
     # For demonstration, let's just store a placeholder.
@@ -433,7 +433,7 @@ def test_traceroute(url):
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
-        results["info"] = "No hostname found for traceroute."
+        results["details"]["info"] = "No hostname found for traceroute."
         return results
 
     # Example using a simplified approach or calling an external command:
@@ -441,17 +441,16 @@ def test_traceroute(url):
     # try:
     #     cmd = ["traceroute", hostname]
     #     process = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-    #     results["trace_output"] = process.stdout.splitlines()
+    #     results["details"]["trace_output"] = process.stdout.splitlines()
     #     if process.returncode != 0:
-    #         results["info"] = "Traceroute command returned non-zero exit."
+    #         results["details"]["info"] = "Traceroute command returned non-zero exit."
     # except Exception as e:
-    #     results["info"] = f"Traceroute command failed: {str(e)}"
+    #     results["details"]["info"] = f"Traceroute command failed: {str(e)}"
 
-    results["info"] = "Traceroute stub - for real usage, implement with raw sockets or subprocess."
+    results["details"]["info"] = "Traceroute stub - for real usage, implement with raw sockets or subprocess."
     return results
 
-
-def test_cors_check(url):
+def test_cors_check(url: str) -> Dict[str, Any]:
     """
     13. CORS Check
        - Often relevant for browser-based requests, but let's see if the Access-Control-Allow-Origin
@@ -459,20 +458,22 @@ def test_cors_check(url):
     """
     results = {
         "test_name": "CORS Check",
-        "url": url,
-        "access_control_allow_origin": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "access_control_allow_origin": None,
+            "info": ""
+        }
     }
     try:
         # We can do an OPTIONS request to see if there's a CORS header
         resp = requests.options(url, timeout=10)
-        results["access_control_allow_origin"] = resp.headers.get("Access-Control-Allow-Origin", "None")
+        results["details"]["access_control_allow_origin"] = resp.headers.get("Access-Control-Allow-Origin", "None")
     except Exception as e:
-        results["info"] = f"CORS check error: {str(e)}"
+        results["details"]["info"] = f"CORS check error: {str(e)}"
     return results
 
-
-def test_firewall_ip_blocklist(url):
+def test_firewall_ip_blocklist(url: str) -> Dict[str, Any]:
     """
     14. Potential Firewall / IP blocklist check (Stub)
        - This is complex in practice. We can check if known public blacklists list the IP, or
@@ -481,9 +482,12 @@ def test_firewall_ip_blocklist(url):
     """
     results = {
         "test_name": "Firewall / IP Blocklist",
-        "url": url,
-        "likely_blocked": None,
-        "info": "Stub check. Real check might query public blacklists."
+        "status": "completed",
+        "details": {
+            "url": url,
+            "likely_blocked": None,
+            "info": "Stub check. Real check might query public blacklists."
+        }
     }
     # In reality, you'd do something like:
     # 1. Resolve the IP of the server hosting the resource.
@@ -492,66 +496,69 @@ def test_firewall_ip_blocklist(url):
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
-        results["info"] += " - No hostname found."
+        results["details"]["info"] += " - No hostname found."
         return results
 
     try:
         ip_addr = socket.gethostbyname(hostname)
         # You could send queries to e.g. spamhaus or other RBL providers. This is a stub.
-        results["likely_blocked"] = False
-        results["info"] += f" - Resolved IP: {ip_addr}. No advanced checks performed."
+        results["details"]["likely_blocked"] = False
+        results["details"]["info"] += f" - Resolved IP: {ip_addr}. No advanced checks performed."
     except Exception as e:
-        results["info"] += f" - DNS failed: {str(e)}"
+        results["details"]["info"] += f" - DNS failed: {str(e)}"
     return results
 
-
-def test_hsts(url):
+def test_hsts(url: str) -> Dict[str, Any]:
     """
     15. Verify HSTS / Strict-Transport-Security
        - Check if server sets 'Strict-Transport-Security' header
     """
     results = {
         "test_name": "HSTS Check",
-        "url": url,
-        "strict_transport_security": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "strict_transport_security": None,
+            "info": ""
+        }
     }
     try:
         resp = requests.get(url, timeout=10)
         sts_header = resp.headers.get("Strict-Transport-Security")
-        results["strict_transport_security"] = sts_header if sts_header else "Not set"
+        results["details"]["strict_transport_security"] = sts_header if sts_header else "Not set"
     except Exception as e:
-        results["info"] = f"Could not retrieve HSTS info: {str(e)}"
+        results["details"]["info"] = f"Could not retrieve HSTS info: {str(e)}"
     return results
 
-
-def test_user_agent_variation(url):
+def test_user_agent_variation(url: str) -> Dict[str, Any]:
     """
     16. User-Agent Variation Check
        - Some servers block certain user-agent strings. We'll try a custom one.
     """
     results = {
         "test_name": "User-Agent Variation",
-        "url": url,
-        "status_code_default": None,
-        "status_code_custom_agent": None,
-        "info": ""
+        "status": "completed",
+        "details": {
+            "url": url,
+            "status_code_default": None,
+            "status_code_custom_agent": None,
+            "info": ""
+        }
     }
     try:
         # Default
         r1 = requests.get(url, timeout=10)
-        results["status_code_default"] = r1.status_code
+        results["details"]["status_code_default"] = r1.status_code
 
         # Custom
         headers = {"User-Agent": "LUMA-Diagnostic/1.0"}
         r2 = requests.get(url, headers=headers, timeout=10)
-        results["status_code_custom_agent"] = r2.status_code
+        results["details"]["status_code_custom_agent"] = r2.status_code
     except Exception as e:
-        results["info"] = f"User-Agent variation check failed: {str(e)}"
+        results["details"]["info"] = f"User-Agent variation check failed: {str(e)}"
     return results
 
-
-def test_image_metadata(url):
+def test_image_metadata(url: str) -> Dict[str, Any]:
     """
     17. Image Metadata Check
         - Verify image format details
@@ -569,22 +576,27 @@ def test_image_metadata(url):
             img = Image.open(io.BytesIO(response.content))
             return {
                 "test_name": "Image Metadata",
-                "url": url,
-                "format": img.format,
-                "mode": img.mode,
-                "size": img.size,
-                "info": f"Image is {img.format}, mode {img.mode}, size {img.size}"
+                "status": "completed",
+                "details": {
+                    "url": url,
+                    "format": img.format,
+                    "mode": img.mode,
+                    "size": img.size,
+                    "info": f"Image is {img.format}, mode {img.mode}, size {img.size}"
+                }
             }
     except Exception as e:
         return {
             "test_name": "Image Metadata",
-            "url": url,
-            "error": str(e),
-            "info": "Failed to analyze image metadata"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "error": str(e),
+                "info": "Failed to analyze image metadata"
+            }
         }
 
-
-def test_content_encoding(url):
+def test_content_encoding(url: str) -> Dict[str, Any]:
     """
     18. Content Encoding Check
         - Check for gzip/deflate support
@@ -599,21 +611,26 @@ def test_content_encoding(url):
         encoding = response.headers.get('content-encoding', 'none')
         return {
             "test_name": "Content Encoding",
-            "url": url,
-            "encoding": encoding,
-            "compressed": encoding != 'none',
-            "info": f"Content encoding: {encoding}"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "encoding": encoding,
+                "compressed": encoding != 'none',
+                "info": f"Content encoding: {encoding}"
+            }
         }
     except Exception as e:
         return {
             "test_name": "Content Encoding",
-            "url": url,
-            "error": str(e),
-            "info": "Failed to check content encoding"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "error": str(e),
+                "info": "Failed to check content encoding"
+            }
         }
 
-
-def test_api_auth(api_url, bearer_token):
+def test_api_auth(api_url: str, bearer_token: str) -> Dict[str, Any]:
     """
     19. API Authentication Test
         - Verify token format
@@ -623,8 +640,11 @@ def test_api_auth(api_url, bearer_token):
     if not bearer_token:
         return {
             "test_name": "API Authentication",
-            "url": api_url,
-            "info": "No bearer token provided"
+            "status": "completed",
+            "details": {
+                "url": api_url,
+                "info": "No bearer token provided"
+            }
         }
     
     headers = {
@@ -636,21 +656,26 @@ def test_api_auth(api_url, bearer_token):
         response = requests.get(api_url, headers=headers)
         return {
             "test_name": "API Authentication",
-            "url": api_url,
-            "status_code": response.status_code,
-            "authenticated": response.status_code != 401,
-            "info": f"Authentication {'successful' if response.status_code != 401 else 'failed'}"
+            "status": "completed",
+            "details": {
+                "url": api_url,
+                "status_code": response.status_code,
+                "authenticated": response.status_code != 401,
+                "info": f"Authentication {'successful' if response.status_code != 401 else 'failed'}"
+            }
         }
     except Exception as e:
         return {
             "test_name": "API Authentication",
-            "url": api_url,
-            "error": str(e),
-            "info": "Failed to verify authentication"
+            "status": "completed",
+            "details": {
+                "url": api_url,
+                "error": str(e),
+                "info": "Failed to verify authentication"
+            }
         }
 
-
-def test_proxy_detection(url):
+def test_proxy_detection(url: str) -> Dict[str, Any]:
     """
     20. Proxy Detection
         - Check for intermediate proxies
@@ -673,20 +698,25 @@ def test_proxy_detection(url):
         
         return {
             "test_name": "Proxy Detection",
-            "url": url,
-            "proxy_headers": {k: v for k, v in proxy_headers.items() if v is not None},
-            "info": "Found proxy/CDN headers" if any(proxy_headers.values()) else "No proxy/CDN headers detected"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "proxy_headers": {k: v for k, v in proxy_headers.items() if v is not None},
+                "info": "Found proxy/CDN headers" if any(proxy_headers.values()) else "No proxy/CDN headers detected"
+            }
         }
     except Exception as e:
         return {
             "test_name": "Proxy Detection",
-            "url": url,
-            "error": str(e),
-            "info": "Failed to check for proxies"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "error": str(e),
+                "info": "Failed to check for proxies"
+            }
         }
 
-
-def test_advanced_image_analysis(url):
+def test_advanced_image_analysis(url: str) -> Dict[str, Any]:
     """
     21. Advanced Image Analysis
         - Check for progressive JPEG
@@ -746,22 +776,28 @@ def test_advanced_image_analysis(url):
             
             return {
                 "test_name": "Advanced Image Analysis",
-                "url": url,
-                "progressive_jpeg": is_progressive,
-                "color_space": color_space,
-                "compression_quality": quality,
-                "embedded_metadata": {k: v for k, v in img.info.items() if isinstance(v, (str, int, float))},
-                "info": f"Progressive: {is_progressive}, Quality: {quality}"
+                "status": "completed",
+                "details": {
+                    "url": url,
+                    "progressive_jpeg": is_progressive,
+                    "color_space": color_space,
+                    "compression_quality": quality,
+                    "embedded_metadata": {k: v for k, v in img.info.items() if isinstance(v, (str, int, float))},
+                    "info": f"Progressive: {is_progressive}, Quality: {quality}"
+                }
             }
     except Exception as e:
         return {
             "test_name": "Advanced Image Analysis",
-            "url": url,
-            "error": str(e),
-            "info": "Failed to perform advanced image analysis"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "error": str(e),
+                "info": "Failed to perform advanced image analysis"
+            }
         }
 
-def test_enhanced_network_diagnostics(url):
+def test_enhanced_network_diagnostics(url: str) -> Dict[str, Any]:
     """
     22. Enhanced Network Diagnostics
         - Full traceroute implementation
@@ -818,18 +854,24 @@ def test_enhanced_network_diagnostics(url):
         
         return {
             "test_name": "Enhanced Network Diagnostics",
-            "url": url,
-            "traceroute": trace_results,
-            "ip_reputation": reputation,
-            "geo_info": geo_info,
-            "info": f"Traced route to {hostname} ({ip})"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "traceroute": trace_results,
+                "ip_reputation": reputation,
+                "geo_info": geo_info,
+                "info": f"Traced route to {hostname} ({ip})"
+            }
         }
     except Exception as e:
         return {
             "test_name": "Enhanced Network Diagnostics",
-            "url": url,
-            "error": str(e),
-            "info": "Failed to perform network diagnostics"
+            "status": "completed",
+            "details": {
+                "url": url,
+                "error": str(e),
+                "info": "Failed to perform network diagnostics"
+            }
         }
 
 def run_diagnostics():
@@ -852,7 +894,7 @@ def run_diagnostics():
         results_list.append(test_redirect(url))
 
     if CONFIG["TEST_HEADERS_CONTENT"]:
-        results_list.append(test_headers_content(url))
+        results_list.append(test_headers_and_content(url))
 
     if CONFIG["TEST_IMAGE_VALIDITY"]:
         results_list.append(test_image_validity(url))
@@ -919,7 +961,7 @@ def save_results(results, json_file, txt_file):
     with open(txt_file, "w", encoding="utf-8") as f:
         for item in results:
             f.write(f"Test: {item['test_name']}\n")
-            for k, v in item.items():
+            for k, v in item['details'].items():
                 if k != "test_name":
                     f.write(f"  {k}: {v}\n")
             f.write("\n")
