@@ -36,6 +36,12 @@ def print_welcome():
     ))
     time.sleep(1)
 
+def mask_api_key(key: str) -> str:
+    """Mask API key, showing only the last 4 characters."""
+    if not key or len(key) < 4:
+        return "****"
+    return f"{'*' * (len(key) - 4)}{key[-4:]}"
+
 def get_image_url() -> Optional[str]:
     """Get the image URL from the user."""
     try:
@@ -83,16 +89,16 @@ def get_image_url() -> Optional[str]:
 def get_api_key() -> Optional[str]:
     """Get the API key from the user."""
     try:
-        current_key = SETTINGS.get_api_key()
-        
-        if current_key:
+        # Check environment variable first
+        env_key = os.getenv("LUMA_API_KEY")
+        if env_key:
             questions = [
                 {
                     "type": "select",
                     "name": "key_source",
-                    "message": "Which API key would you like to use?",
+                    "message": f"Found API key in environment variable LUMA_API_KEY (ends with ...{mask_api_key(env_key)}). What would you like to do?",
                     "choices": [
-                        "Use existing API key",
+                        "Use API key from environment variable",
                         "Enter a new API key",
                         "Don't use an API key"
                     ]
@@ -109,8 +115,8 @@ def get_api_key() -> Optional[str]:
             if answers is None:  # User cancelled
                 return "CANCELLED"
             
-            if answers["key_source"] == "Use existing API key":
-                return current_key
+            if answers["key_source"] == "Use API key from environment variable":
+                return env_key
             elif answers["key_source"] == "Enter a new API key":
                 new_key = answers["api_key"]
                 SETTINGS.set_api_key(new_key)
@@ -118,7 +124,42 @@ def get_api_key() -> Optional[str]:
             else:
                 return None
         
-        # No existing key
+        # Check saved settings
+        saved_key = SETTINGS.get_api_key()
+        if saved_key:
+            questions = [
+                {
+                    "type": "select",
+                    "name": "key_source",
+                    "message": f"Found saved API key in ~/.config/luma-diagnostics/settings.json (ends with ...{mask_api_key(saved_key)}). What would you like to do?",
+                    "choices": [
+                        "Use saved API key",
+                        "Enter a new API key",
+                        "Don't use an API key"
+                    ]
+                },
+                {
+                    "type": "password",
+                    "name": "api_key",
+                    "message": "Please enter your LUMA API key:",
+                    "when": lambda x: x["key_source"] == "Enter a new API key"
+                }
+            ]
+            
+            answers = questionary.prompt(questions)
+            if answers is None:  # User cancelled
+                return "CANCELLED"
+            
+            if answers["key_source"] == "Use saved API key":
+                return saved_key
+            elif answers["key_source"] == "Enter a new API key":
+                new_key = answers["api_key"]
+                SETTINGS.set_api_key(new_key)
+                return new_key
+            else:
+                return None
+        
+        # No existing key found
         questions = [
             {
                 "type": "confirm",

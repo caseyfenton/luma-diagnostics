@@ -161,6 +161,36 @@ The results include:
 - Asset URLs when available
 - Performance metrics
 
+## API Key Management
+
+Your LUMA API key can be stored in several ways:
+
+1. **Environment Variable (Recommended)**
+   ```bash
+   # Add to your ~/.bashrc, ~/.zshrc, or similar
+   export LUMA_API_KEY=your_api_key_here
+   ```
+   Or create a `.env` file in your home directory:
+   ```bash
+   # ~/.env
+   LUMA_API_KEY=your_api_key_here
+   ```
+
+2. **Settings File**
+   When you enter an API key in the wizard, it's saved to:
+   ```
+   ~/.config/luma-diagnostics/settings.json
+   ```
+   This allows you to reuse the key in future sessions.
+
+3. **Per-Session**
+   You can also enter your API key each time you run the wizard, or pass it directly via the CLI:
+   ```bash
+   luma-diagnostics --api-key your_api_key_here
+   ```
+
+The wizard will automatically detect and offer to use any existing API keys it finds in these locations.
+
 ## Case Management
 
 ### Directory Structure
