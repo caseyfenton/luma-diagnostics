@@ -161,6 +161,32 @@ The results include:
 - Asset URLs when available
 - Performance metrics
 
+## Case Management
+
+The wizard can help you create and manage test cases. After running tests, you'll be prompted to create a case if you want to track:
+- Test configurations and results
+- Customer information
+- Technical context and issues
+- Priority levels
+
+Cases are stored in the `cases/active` directory with the following structure:
+```
+cases/
+├── active/
+│   └── case_20250122_102345/
+│       └── CASE_20250122_102345.md
+└── archived/
+```
+
+Each case file includes:
+- Case metadata (ID, creation time, priority)
+- Customer information
+- Technical description
+- Test configuration
+- Complete test results
+
+You can also create cases manually or move them to `cases/archived` when resolved.
+
 ## API Key Management
 
 Your LUMA API key can be stored in several ways:
@@ -190,35 +216,6 @@ Your LUMA API key can be stored in several ways:
    ```
 
 The wizard will automatically detect and offer to use any existing API keys it finds in these locations.
-
-## Case Management
-
-### Directory Structure
-```
-cases/
-├── templates/          # Templates for new cases
-│   ├── case.env.template
-│   └── example_customer_case.env.example
-├── active/            # Active case configurations
-│   ├── case123.env
-│   └── case456.env
-└── results/           # Test results by case
-    ├── case123/
-    │   ├── 2025-01-22T090425-diagnostic.json
-    │   └── 2025-01-22T090425-diagnostic.txt
-    └── case456/
-        ├── 2025-01-22T085530-diagnostic.json
-        └── 2025-01-22T085530-diagnostic.txt
-```
-
-### Case Configuration
-Each case configuration file (`cases/active/caseXXX.env`) includes:
-- Case metadata (ID, customer info, priority)
-- Test configuration
-- API settings
-- Output preferences
-
-See `cases/templates/case.env.template` for all available options.
 
 ## Environment Variables
 
