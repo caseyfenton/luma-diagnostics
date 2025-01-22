@@ -164,13 +164,39 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
         task = progress.add_task(description="Running tests...", total=None)
         
         try:
+            # Run tests with a 30-second timeout
             results = diagnostics.run_with_config(
                 case_id=case_id,
                 config_path=None,
                 image_url=image_url,
-                output_dir=None
+                output_dir=None,
+                timeout=30
             )
             progress.update(task, completed=True)
+            
+            # Check for timeout or connection errors
+            has_errors = False
+            for result in results:
+                if result["status"] == "failed":
+                    has_errors = True
+                    if "timeout" in str(result.get("details", {}).get("error", "")).lower():
+                        console.print("\n[bold red]Error:[/bold red] Tests timed out. The server might be slow or unresponsive.")
+                        if questionary.confirm("Would you like to try again with a longer timeout?").ask():
+                            # Retry with longer timeout
+                            progress.update(task, description="Retrying with longer timeout...")
+                            results = diagnostics.run_with_config(
+                                case_id=case_id,
+                                config_path=None,
+                                image_url=image_url,
+                                output_dir=None,
+                                timeout=60
+                            )
+                            progress.update(task, completed=True)
+                            break
+            
+            # Show results
+            clear_screen()
+            console.print("\n[bold green]Tests completed![/bold green]\n")
             
             # Find output files
             output_files = []
@@ -178,10 +204,6 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                 if result["test_name"] == "Output Files":
                     output_files = result["details"]["output_files"]
                     break
-            
-            # Show results
-            clear_screen()
-            console.print("\n[bold green]Tests completed![/bold green]\n")
             
             if output_files:
                 console.print("[bold]Results saved to:[/bold]")
@@ -208,6 +230,27 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                     else:
                         if "details" in result and "error" in result["details"]:
                             console.print(f"[red]Error: {result['details']['error']}[/red]")
+                            
+                            # Provide helpful suggestions based on error
+                            error_msg = str(result["details"]["error"]).lower()
+                            if "timeout" in error_msg:
+                                console.print("\n[yellow]Suggestion: The server might be slow. Try:[/yellow]")
+                                console.print("1. Check your internet connection")
+                                console.print("2. Try a different image URL")
+                                console.print("3. Run the test again with a longer timeout")
+                            elif "certificate" in error_msg:
+                                console.print("\n[yellow]Suggestion: SSL/Certificate issue. Try:[/yellow]")
+                                console.print("1. Use an HTTPS URL")
+                                console.print("2. Check if the website's SSL certificate is valid")
+                            elif "dns" in error_msg:
+                                console.print("\n[yellow]Suggestion: DNS resolution failed. Try:[/yellow]")
+                                console.print("1. Check if the URL is correct")
+                                console.print("2. Check if the website is accessible")
+                            elif "connection" in error_msg:
+                                console.print("\n[yellow]Suggestion: Connection failed. Try:[/yellow]")
+                                console.print("1. Check your internet connection")
+                                console.print("2. Check if the website is accessible")
+                                console.print("3. Try a different image URL")
                         else:
                             console.print(f"Status: {result['status']}")
             

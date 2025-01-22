@@ -5,16 +5,92 @@ import json
 import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
+import requests
+from requests.exceptions import Timeout, RequestException
 
 from . import tests
 from . import api_tests
 from . import utils
 from . import generation_tests
 
+def test_image_headers(url: str, timeout: int = 10) -> Dict[str, Any]:
+    """Test image headers."""
+    try:
+        response = requests.head(url, timeout=timeout)
+        response.raise_for_status()
+        
+        return {
+            "test_name": "Headers and Content",
+            "status": "completed",
+            "details": {
+                "url": url,
+                "content_type": response.headers.get('content-type', 'unknown'),
+                "content_length_header": int(response.headers.get('content-length', 0)),
+                "content_length_actual": len(response.content) if response.content else 0,
+                "info": ""
+            }
+        }
+    except Timeout:
+        return {
+            "test_name": "Headers and Content",
+            "status": "failed",
+            "details": {
+                "error": f"Request timed out after {timeout} seconds",
+                "url": url
+            }
+        }
+    except RequestException as e:
+        return {
+            "test_name": "Headers and Content",
+            "status": "failed",
+            "details": {
+                "error": str(e),
+                "url": url
+            }
+        }
+
+def test_image_validity(url: str, timeout: int = 10) -> Dict[str, Any]:
+    """Test image validity."""
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        
+        # Check if it's a valid JPEG
+        is_jpeg = response.content.startswith(b'\xff\xd8\xff')
+        
+        return {
+            "test_name": "Image Validity",
+            "status": "completed",
+            "details": {
+                "url": url,
+                "is_jpeg_signature": is_jpeg,
+                "info": ""
+            }
+        }
+    except Timeout:
+        return {
+            "test_name": "Image Validity",
+            "status": "failed",
+            "details": {
+                "error": f"Request timed out after {timeout} seconds",
+                "url": url
+            }
+        }
+    except RequestException as e:
+        return {
+            "test_name": "Image Validity",
+            "status": "failed",
+            "details": {
+                "error": str(e),
+                "url": url
+            }
+        }
+
 def run_with_config(case_id: Optional[str] = None,
                    config_path: Optional[str] = None,
                    image_url: Optional[str] = None,
-                   output_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+                   output_dir: Optional[str] = None,
+                   timeout: int = 10) -> List[Dict[str, Any]]:
     """Run diagnostics with the given configuration."""
     results = []
     
@@ -36,8 +112,8 @@ def run_with_config(case_id: Optional[str] = None,
             tests.test_public_access(test_image_url),
             tests.test_cert_validation(test_image_url),
             tests.test_redirect(test_image_url),
-            tests.test_headers_and_content(test_image_url),
-            tests.test_image_validity(test_image_url)
+            test_image_headers(test_image_url, timeout),
+            test_image_validity(test_image_url, timeout)
         ])
     
     # Run API tests if key available
