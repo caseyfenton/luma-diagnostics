@@ -18,6 +18,9 @@
 ## Development
 - [ ] Complete and test case management feature
 - [ ] Update documentation with new case management functionality
+- [ ] Fix failing test: `test_cli_valid_image` in test_cli.py
+      - Issue: SystemExit not being raised as expected
+      - Related to case management feature changes
 
 ## Notes
 - Current PyPI version (0.1.0) is functional but has incorrect metadata
