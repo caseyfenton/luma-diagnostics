@@ -24,13 +24,16 @@ test_requirements = [
 
 setup(
     name="luma-diagnostics",
-    version="0.1.0",
-    author="LUMA Labs",
-    author_email="support@lumalabs.ai",
-    description="A diagnostic tool for troubleshooting LUMA Dream Machine API issues",
+    version="0.1.1",
+    author="Casey Fenton",
+    author_email="casey@caseyfenton.com",
+    description="An unofficial diagnostic tool for troubleshooting LUMA Dream Machine API issues",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/lumalabs/api-diagnostics",
+    url="https://github.com/caseyfenton/luma-diagnostics",
+    project_urls={
+        "Bug Tracker": "https://github.com/caseyfenton/luma-diagnostics/issues",
+    },
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

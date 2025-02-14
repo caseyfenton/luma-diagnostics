@@ -1,6 +1,8 @@
 # LUMA API Image Diagnostics
 
-An automated diagnostic suite for troubleshooting image processing issues with the LUMA API. This tool provides a user-friendly wizard interface to run comprehensive tests and generate detailed reports.
+An unofficial diagnostic tool for troubleshooting image processing issues with the LUMA API. This tool provides a user-friendly wizard interface to run comprehensive tests and generate detailed reports.
+
+> **Note**: This is an independent, community-created tool and is not officially affiliated with or supported by LUMA Labs. While it's designed to help LUMA API users diagnose issues, it's maintained by the community.
 
 ## Features
 
