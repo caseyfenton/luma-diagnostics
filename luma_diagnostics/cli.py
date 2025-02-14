@@ -1,20 +1,19 @@
-"""Command-line interface for LUMA Diagnostics."""
+"""Command line interface for LUMA diagnostics."""
 
 import os
 import sys
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
-from . import diagnostics
 from . import utils
 from . import api_tests
 from . import messages
 from . import wizard
-import json
+from .case_manager import CaseManager
 from rich.console import Console
 from PIL import Image
-import requests
 from typing import Optional
+import json
 
 console = Console()
 
@@ -83,80 +82,13 @@ def validate_image(image_path: str) -> Optional[str]:
     """Validate image file and return error message if invalid."""
     try:
         if not os.path.exists(image_path):
-            return "Image file does not exist"
+            return "File does not exist"
         
-        with Image.open(image_path) as img:
-            if img.format not in ['JPEG', 'PNG']:
-                return "Image must be JPEG or PNG format"
-            
-            # Check reasonable size limits
-            if img.size[0] * img.size[1] > 4096 * 4096:
-                return "Image dimensions too large (max 4096x4096)"
-            
+        image = Image.open(image_path)
+        image.verify()
         return None
     except Exception as e:
-        return f"Invalid image file: {str(e)}"
-
-def validate_api_key(api_key: str) -> Optional[str]:
-    """Validate API key format and return error message if invalid."""
-    if not api_key:
-        return "API key is required"
-    if not api_key.startswith("luma_"):
-        return "Invalid API key format (should start with 'luma_')"
-    if len(api_key) < 32:
-        return "API key too short"
-    return None
-
-def run_tests(api_key: str, image_path: Optional[str] = None) -> bool:
-    """Run diagnostic tests and return True if all pass."""
-    tester = api_tests.LumaAPITester(api_key)
-    all_passed = True
-    
-    # Basic API test
-    messages.print_info("Running basic API test...")
-    result = tester.test_text_to_image("A test prompt")
-    if result["status"] == "error":
-        messages.print_error(f"API test failed: {result['details']['error']}")
-        all_passed = False
-    else:
-        messages.print_success("Basic API test passed")
-    
-    # Image test if provided
-    if image_path:
-        messages.print_info("Testing with provided image...")
-        # First validate image locally
-        error = validate_image(image_path)
-        if error:
-            messages.print_error(f"Image validation failed: {error}")
-            all_passed = False
-        else:
-            # Test with API
-            result = tester.test_image_reference("Test with this image", image_path)
-            if result["status"] == "error":
-                messages.print_error(f"Image test failed: {result['details']['error']}")
-                all_passed = False
-            else:
-                messages.print_success("Image test passed")
-    
-    return all_passed
-
-def create_case_directories():
-    """Create necessary case directories if they don't exist."""
-    base_dir = utils.get_config_dir()
-    
-    # Create directory structure
-    for dir_name in ["templates", "active", "results"]:
-        dir_path = base_dir / "cases" / dir_name
-        dir_path.mkdir(parents=True, exist_ok=True)
-
-def load_environment():
-    """Load environment variables from various sources."""
-    # Load from system environment first
-    load_dotenv(os.path.expanduser("~/.env"))
-    
-    # Load from current directory if exists
-    if os.path.exists(".env"):
-        load_dotenv(".env")
+        return str(e)
 
 def main():
     """Main entry point for the CLI."""
@@ -213,7 +145,8 @@ def main():
     
     if args.export_case:
         try:
-            output_file = case_manager.export_case(args.export_case, args.output_dir)
+            output_dir = args.output_dir or os.getcwd()
+            output_file = case_manager.export_case(args.export_case, output_dir)
             messages.print_success(f"Case exported to: {output_file}")
             messages.print_info("You can send this file to support@lumalabs.ai for assistance")
             return
@@ -241,6 +174,7 @@ def main():
                     messages.print_success("Basic API test passed")
                 else:
                     messages.print_error(f"Basic API test failed: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
             
             if args.image:
                 messages.print_info("Testing with provided image...")
@@ -249,24 +183,25 @@ def main():
                     messages.print_success("Image test passed")
                 else:
                     messages.print_error(f"Image test failed: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
             
             # Add test result to current case if one is selected
             if case_manager.current_case:
                 case_manager.add_test_result(result)
+            
+            # Exit with success if we've run any tests
+            if args.test or args.image:
+                sys.exit(0)
         else:
             parser.print_help()
             sys.exit(2)
             
     except KeyboardInterrupt:
-        messages.print("\nOperation cancelled by user")
+        print("\nOperation cancelled by user")
         sys.exit(1)
     except Exception as e:
         messages.print_error(str(e))
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Create necessary directories
-    create_case_directories()
-    
-    # Run main CLI
     main()
