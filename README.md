@@ -174,8 +174,27 @@ If you encounter any issues:
 
 1. Run the tool with the `--test` flag to perform basic diagnostics
 2. Check the troubleshooting section above
-3. Create a case with `--create-case` to save your test results
+3. Use the `--case` parameter to specify a test case (for advanced users)
 4. Report the issue on the [GitHub issue tracker](https://github.com/caseyfenton/luma-diagnostics/issues)
+
+## 📁 Case Management
+
+The tool includes a case management system to help organize your testing results:
+
+```bash
+# Run with a specific case ID (creates if it doesn't exist)
+luma-diagnostics --case my_test_case --api-key your_api_key
+
+# Case files are stored in ~/.config/luma-diagnostics/cases/
+```
+
+Case files are organized in the following structure:
+```
+~/.config/luma-diagnostics/cases/
+├── active/          # Active case files
+├── results/         # Test results
+└── templates/       # Case templates
+```
 
 ## 💬 Feedback and Contributions
 
