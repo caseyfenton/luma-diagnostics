@@ -44,6 +44,10 @@ def mask_api_key(key: str) -> str:
         return "****"
     return f"{'*' * (len(key) - 4)}{key[-4:]}"
 
+def run_wizard():
+    """Entry point for the wizard, called from the CLI."""
+    main()
+
 def get_image_url() -> Optional[str]:
     """Get the image URL from the user."""
     try:
@@ -567,7 +571,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        run_wizard()
     except KeyboardInterrupt:
         console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
         sys.exit(0)
