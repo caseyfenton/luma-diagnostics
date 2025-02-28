@@ -1,4 +1,7 @@
 from setuptools import setup, find_packages
+import os
+import sys
+from setuptools.command.install import install
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -21,6 +24,24 @@ test_requirements = [
     "pillow>=8.3.1",  # For image validation
     "numpy>=1.21.0",  # For test image generation
 ]
+
+# Define post-install command
+class PostInstallCommand(install):
+    def run(self):
+        # First run the standard install
+        install.run(self)
+        
+        try:
+            # Then run our post-install script
+            from subprocess import call
+            call([sys.executable, '-m', 'luma_diagnostics.post_install'])
+        except Exception:
+            pass
+
+# Get the post-install script
+scripts = []
+if os.path.exists('scripts/post_install.py'):
+    scripts = ['scripts/post_install.py']
 
 setup(
     name="luma-diagnostics",
@@ -61,5 +82,8 @@ setup(
             "templates/*",
             "cases/templates/*"
         ],
+    },
+    cmdclass={
+        'install': PostInstallCommand,
     },
 )
