@@ -14,8 +14,10 @@ from rich import print as rprint
 from . import diagnostics
 from . import utils
 from . import settings
+from . import mock_tests
 import datetime
 import re
+from rich import box
 
 console = Console()
 
@@ -465,19 +467,16 @@ def create_case(image_url: str, api_key: Optional[str], test_type: str, params: 
         console.print(f"\n[red]Error creating case:[/red] {str(e)}")
         return None
 
-def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]):
+def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Run the specified tests and display results."""
-    try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeRemainingColumn(),
-            console=console,
-            transient=True
-        ) as progress:
-            
+    results = {}
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}[/bold blue]"),
+        BarColumn(),
+        TimeRemainingColumn()
+    ) as progress:
+        try:
             # Run tests and collect results
             test_results = {}
             
@@ -496,40 +495,121 @@ def run_tests(image_url: str, api_key: Optional[str], test_type: str, params: Di
                     params
                 )
                 progress.update(task, completed=100)
-        
-        # Display results
-        console.print("\n[bold green]Test Results:[/bold green]")
-        for test_name, result in test_results.items():
-            console.print(f"\n[bold]{test_name}[/bold]")
-            if isinstance(result, dict):
-                for key, value in result.items():
-                    console.print(f"  [blue]{key}:[/blue] {value}")
-            else:
-                console.print(f"  {result}")
-        
-        # Offer to create a case
-        case_dir = create_case(image_url, api_key, test_type, params, test_results)
-        
-        # Ask if user wants to run another test
-        if questionary.confirm("\nWould you like to run another test?").ask():
-            main()
-        else:
-            console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
-            if case_dir:
-                abs_case_dir = os.path.abspath(case_dir)
-                console.print(f"\n[green]Your case and test results are in:[/green] {abs_case_dir}")
-                console.print("You can view the case file and test results there.")
             
-    except Exception as e:
-        console.print(f"\n[bold red]Error running tests:[/bold red] {str(e)}")
-        return 1
+            # Display results using our enhanced formatter
+            console.print("\n[bold green]Test Results:[/bold green]")
+            from . import messages
+            messages.format_test_results(test_results)
+            
+            # Offer to create a case
+            case_dir = create_case(image_url, api_key, test_type, params, test_results)
+            
+            # Ask if user wants to run another test
+            if questionary.confirm("\nWould you like to run another test?").ask():
+                main()
+            else:
+                console.print("\n[bold blue]Thanks for using LUMA Diagnostics![/bold blue]")
+                if case_dir:
+                    abs_case_dir = os.path.abspath(case_dir)
+                    console.print(f"\n[green]Your case and test results are in:[/green] {abs_case_dir}")
+                    console.print("You can view the case file and test results there.")
+                
+        except Exception as e:
+            console.print(f"\n[bold red]Error running tests:[/bold red] {str(e)}")
+            return 1
     
     return 0
+
+def run_demo_wizard():
+    """Run a demo version of the wizard without requiring an API key."""
+    print_welcome()
+    
+    console.print(Panel(
+        "[bold yellow]⚠ Demo Mode Active[/bold yellow]\n"
+        "This is a demonstration of the LUMA Diagnostics wizard.\n"
+        "No actual API calls will be made and all results are simulated.",
+        title="LUMA Diagnostics Wizard",
+        border_style="yellow",
+        box=box.ROUNDED
+    ))
+    
+    # Ask about what the user is trying to do
+    what_to_do = questionary.select(
+        "What would you like to do?",
+        choices=[
+            "Test an image I already have",
+            "Test the LUMA API connection",
+            "Exit demo"
+        ]
+    ).ask()
+    
+    if what_to_do == "Exit demo":
+        console.print("[yellow]Exiting demo wizard.[/yellow]")
+        return
+    
+    if what_to_do == "Test an image I already have":
+        # Ask for an image path
+        image_path = questionary.text(
+            "Enter the path to your image file:",
+            default="(Skip to use a mock image)"
+        ).ask()
+        
+        if not image_path or image_path == "(Skip to use a mock image)":
+            console.print("[yellow]Using mock image data for demonstration.[/yellow]")
+            image_path = None
+        else:
+            # Validate image
+            if not os.path.exists(image_path):
+                console.print(f"[red]File not found: {image_path}[/red]")
+                console.print("[yellow]Using mock image data for demonstration.[/yellow]")
+                image_path = None
+    else:
+        image_path = None
+    
+    # Show "running tests" animation
+    console.print("[bold]Running diagnostic tests...[/bold]")
+    with console.status("[bold green]Running tests...[/bold green]", spinner="dots"):
+        # Simulate API delay
+        time.sleep(2)
+        
+    # Run mock tests
+    mock_tests.run_mock_tests(image_path)
+    
+    # Ask if user wants to create a case
+    create_case = questionary.confirm(
+        "Would you like to create a support case with these results?",
+        default=False
+    ).ask()
+    
+    if create_case:
+        console.print(Panel(
+            "[yellow]In a real session, this would create a support case with LUMA.[/yellow]\n"
+            "You could then share this case with LUMA support for assistance.",
+            title="Demo: Create Support Case",
+            border_style="yellow",
+            box=box.ROUNDED
+        ))
+    
+    # Final message
+    console.print("\n[bold green]Demo wizard complete![/bold green]")
+    console.print("This demonstration shows how the LUMA Diagnostics tool works.")
+    console.print("To use the real version, you'll need a LUMA API key.\n")
 
 def main():
     """Main entry point for the wizard."""
     try:
         print_welcome()
+        
+        # Check if we are in a TTY - needed for questionary
+        if not sys.stdin.isatty():
+            console.print("[yellow]Interactive wizard requires a terminal. Try using --test or --image instead.[/yellow]")
+            return
+        
+        # Check if we're in a continuous integration environment
+        if os.environ.get("CI") or os.environ.get("CONTINUOUS_INTEGRATION"):
+            console.print("[yellow]CI environment detected. Running in demo mode...[/yellow]")
+            run_demo_wizard()
+            return
         
         # Get image URL
         image_url = get_image_url()

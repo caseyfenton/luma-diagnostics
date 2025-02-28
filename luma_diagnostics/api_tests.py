@@ -135,6 +135,41 @@ class LumaAPITester:
             }
         }
     
+    def mock_test(self) -> Dict:
+        """Run a simulated test that demonstrates test result formatting without making actual API calls."""
+        return {
+            "status": "success",
+            "test_name": "Mock Test",
+            "details": {
+                # Basic tests
+                "Public Access": {
+                    "status": "success",
+                    "message": "The image is publicly accessible and can be reached by Luma servers.",
+                    "details": {"response_time_ms": 120, "content_length": 54321}
+                },
+                "SSL Certificate": {
+                    "status": "success",
+                    "message": "SSL certificate is valid and trusted.",
+                    "details": {"issuer": "Let's Encrypt", "expiry": "2025-12-31"}
+                },
+                "URL Redirect": {
+                    "status": "warning",
+                    "message": "URL redirects to another location. This may cause issues with some API endpoints.",
+                    "details": {"original_url": "http://example.com/image.jpg", "final_url": "https://cdn.example.com/image.jpg"}
+                },
+                "HTTP Headers": {
+                    "status": "success",
+                    "message": "All required HTTP headers are present.",
+                    "details": {"content_type": "image/jpeg", "content_length": "54321"}
+                },
+                "Image Validity": {
+                    "status": "success",
+                    "message": "Image format is valid and supported by LUMA APIs.",
+                    "details": {"format": "JPEG", "dimensions": "1024x768", "size_kb": 450}
+                }
+            }
+        }
+    
     def run_all_tests(self, test_image_url: Optional[str] = None) -> List[Dict]:
         """Run all API tests."""
         results = []

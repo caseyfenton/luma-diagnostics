@@ -19,6 +19,7 @@ This diagnostic wizard helps you identify and fix issues when using the LUMA API
 - Checking for common configuration errors
 - Generating detailed reports to help diagnose problems
 - Providing helpful suggestions for fixing issues
+- Displaying a helpful welcome message with quick start commands
 
 ## 🚀 Installation Guide
 
@@ -99,18 +100,57 @@ The wizard will guide you through:
 - Diagnosing any issues
 - Generating a detailed report
 
+## 🎮 Demo Mode (No API Key Required)
+
+Want to see how the tool works without an API key? Try the demo mode:
+
+```bash
+# Run the interactive wizard in demo mode
+luma-diagnostics --wizard --demo
+
+# Try the basic tests in demo mode
+luma-diagnostics --demo
+
+# Test a specific image in demo mode
+luma-diagnostics --demo --image /path/to/your/image.jpg
+```
+
+Demo mode provides simulated test results to show you how the tool looks and functions without requiring LUMA API credentials. It's perfect for:
+- Getting familiar with the tool before obtaining an API key
+- Training purposes and demonstrations
+- Testing the tool in environments where API access is not available
+
 ## 📊 Sample Commands
 
 ```bash
 # Run the interactive wizard (recommended for beginners)
 luma-diagnostics --wizard
 
+# Try the demo mode (no API key required)
+luma-diagnostics --demo
+
 # Test a specific image URL
 luma-diagnostics --image-url https://example.com/image.jpg --test-type basic
 
 # Create a case to track troubleshooting
-luma-diagnostics --create-case "My Image Issue" --case-description "Having trouble with my landscape image"
+luma-diagnostics --create-case "My Test Case"
+
+# Test a local image file
+luma-diagnostics --image /path/to/your/image.jpg --test-type full
+
+# Get help with all available commands
+luma-diagnostics --help
 ```
+
+## 🆕 New in Version 1.0.1
+
+The latest version includes a helpful welcome message that appears when you first install and import the package. This message provides:
+
+- Quick start commands for common tasks
+- Basic usage instructions
+- An overview of the main functionality
+
+The welcome message appears automatically on first use, but won't interrupt your workflow for subsequent imports.
 
 ## 🔑 API Key Configuration
 
