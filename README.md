@@ -93,7 +93,7 @@ The easiest way to use this tool is with the interactive wizard:
 3. Follow the on-screen prompts
 
 The wizard will guide you through:
-- Setting up your LUMA API key
+- Setting up your LUMA API key (required for all tests)
 - Testing your connection
 - Validating your images
 - Diagnosing any issues
@@ -105,16 +105,20 @@ The wizard will guide you through:
 # Run the interactive wizard (recommended for beginners)
 luma-diagnostics --wizard
 
-# Test a specific image URL
-luma-diagnostics --image-url https://example.com/image.jpg --test-type basic
+# Run basic diagnostic tests with your API key
+luma-diagnostics --test --api-key your_api_key
 
-# Create a case to track troubleshooting
-luma-diagnostics --create-case "My Image Issue" --case-description "Having trouble with my landscape image"
+# Test a specific image URL and your API key
+luma-diagnostics --test --image /path/to/your/image.jpg --api-key your_api_key
+
+# Use API key from environment variable
+export LUMA_API_KEY=your_api_key  # (macOS/Linux)
+luma-diagnostics --test
 ```
 
 ## 🔑 API Key Configuration
 
-Your LUMA API key is required for most tests. You can provide it in several ways:
+Your LUMA API key is **required** for all tests, including basic diagnostics. You can provide it in several ways:
 
 1. **Environment variable** (recommended):
    ```bash
@@ -133,10 +137,21 @@ Your LUMA API key is required for most tests. You can provide it in several ways
    - Create a file named `.env` in your home directory
    - Add the line: `LUMA_API_KEY=your_api_key`
 
-3. **Wizard input**:
+3. **Command line argument**:
+   - Pass your API key with each command: `luma-diagnostics --api-key your_api_key --test`
+
+4. **Wizard input**:
    - The wizard will prompt you to enter your API key if needed
+   - The wizard can also save your API key to your `.env` file for future use
+
+> **Note**: Your API key should begin with `luma_` and be at least 32 characters long.
 
 ## 🐛 Troubleshooting Common Issues
+
+### "API key is required" error
+- Make sure you've set your LUMA API key using one of the methods in the API Key Configuration section
+- Verify your API key starts with "luma_" and is at least 32 characters long
+- Check if your API key has been properly saved in your environment or .env file
 
 ### "Command not found" error
 - Ensure Python is installed and added to your PATH
