@@ -15,7 +15,7 @@ test_requirements = [
 
 setup(
     name="luma-diagnostics",
-    version="0.1.0",
+    version="1.0.0",
     author="LUMA Labs",
     author_email="support@lumalabs.ai",
     description="A diagnostic tool for troubleshooting LUMA Dream Machine API issues",
