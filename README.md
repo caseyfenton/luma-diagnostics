@@ -1,115 +1,175 @@
 # LUMA API Image Diagnostics
 
-An unofficial diagnostic tool for troubleshooting image processing issues with the LUMA API. This tool provides a user-friendly wizard interface to run comprehensive tests and generate detailed reports.
+Welcome to the LUMA API Diagnostics tool, a community-created helper for LUMA Dream Machine API users! This user-friendly tool helps you diagnose and fix common issues when working with the LUMA API for image generation.
 
 > **Note**: This is an independent, community-created tool and is not officially affiliated with or supported by LUMA Labs. While it's designed to help LUMA API users diagnose issues, it's maintained by the community.
 
-## Features
+## 🌟 Welcome to the LUMA Community!
 
-- 🧙‍♂️ Interactive CLI wizard
-- 🔍 Comprehensive image tests
-- 📊 Detailed test reports
-- 📁 Case management
-- 🔑 Secure API key handling
-- 📝 Human-readable outputs
-- 🤖 JSON outputs for automation
+The LUMA community is filled with amazing creators, artists, and developers exploring the cutting edge of AI-generated imagery. This diagnostic tool was built to support everyone in the community by making it easier to troubleshoot common issues with the LUMA API. We want to ensure everyone can focus on creating amazing art rather than debugging technical problems!
 
-## Installation
+If you have ideas for improving this tool or want to contribute, please reach out. Together, we can make the LUMA experience even better for everyone.
+
+## ✨ What This Tool Does
+
+This diagnostic wizard helps you identify and fix issues when using the LUMA API by:
+
+- Testing your API key and connection
+- Validating your images before submission
+- Checking for common configuration errors
+- Generating detailed reports to help diagnose problems
+- Providing helpful suggestions for fixing issues
+
+## 🚀 Installation Guide
+
+### Windows Users
+
+1. **Install Python** (if not already installed):
+   - Download the latest Python installer from [python.org](https://www.python.org/downloads/windows/)
+   - Run the installer and **make sure to check "Add Python to PATH"**
+   - Verify installation by opening Command Prompt and typing: `python --version`
+
+2. **Install LUMA Diagnostics**:
+   - Open Command Prompt (search for "cmd" in the Start menu)
+   - Run: `pip install luma-diagnostics`
+
+3. **Run the tool**:
+   - In Command Prompt, run: `luma-diagnostics --wizard`
+   - Follow the on-screen instructions
+
+### macOS Users
+
+1. **Install Python** (if not already installed):
+   - Modern Macs come with Python, but it's recommended to install the latest version
+   - The easiest way is with Homebrew:
+     ```
+     # Install Homebrew (if not installed)
+     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+     
+     # Install Python
+     brew install python
+     ```
+   - Alternatively, download from [python.org](https://www.python.org/downloads/macos/)
+
+2. **Install LUMA Diagnostics**:
+   - Open Terminal (from Applications > Utilities)
+   - Run: `pip3 install luma-diagnostics`
+
+3. **Run the tool**:
+   - In Terminal, run: `luma-diagnostics --wizard`
+   - Follow the on-screen instructions
+
+### Linux Users
+
+1. **Install Python** (if not already installed):
+   - Most Linux distributions come with Python pre-installed
+   - If needed, install Python using your distribution's package manager:
+     ```
+     # Ubuntu/Debian
+     sudo apt update
+     sudo apt install python3 python3-pip
+     
+     # Fedora
+     sudo dnf install python3 python3-pip
+     
+     # Arch Linux
+     sudo pacman -S python python-pip
+     ```
+
+2. **Install LUMA Diagnostics**:
+   - Open a terminal
+   - Run: `pip3 install luma-diagnostics`
+
+3. **Run the tool**:
+   - In the terminal, run: `luma-diagnostics --wizard`
+   - Follow the on-screen instructions
+
+## 🧙‍♂️ Using the Diagnostic Wizard
+
+The easiest way to use this tool is with the interactive wizard:
+
+1. Open your terminal/command prompt
+2. Run: `luma-diagnostics --wizard`
+3. Follow the on-screen prompts
+
+The wizard will guide you through:
+- Setting up your LUMA API key
+- Testing your connection
+- Validating your images
+- Diagnosing any issues
+- Generating a detailed report
+
+## 📊 Sample Commands
 
 ```bash
-# Clone the repository
-git clone https://github.com/caseyfenton/luma-diagnostics.git
-cd luma-diagnostics
-
-# Install dependencies
-pip install -e .
-```
-
-## Quick Start
-
-```bash
-# Run the diagnostic wizard
+# Run the interactive wizard (recommended for beginners)
 luma-diagnostics --wizard
 
-# Or run specific tests
+# Test a specific image URL
 luma-diagnostics --image-url https://example.com/image.jpg --test-type basic
+
+# Create a case to track troubleshooting
+luma-diagnostics --create-case "My Image Issue" --case-description "Having trouble with my landscape image"
 ```
 
-## Configuration
+## 🔑 API Key Configuration
 
-1. Set your LUMA API key:
+Your LUMA API key is required for most tests. You can provide it in several ways:
+
+1. **Environment variable** (recommended):
    ```bash
-   # Option 1: Environment variable
+   # Set temporarily for current session
+   # Windows Command Prompt:
+   set LUMA_API_KEY=your_api_key
+   
+   # Windows PowerShell:
+   $env:LUMA_API_KEY="your_api_key"
+   
+   # macOS/Linux:
    export LUMA_API_KEY=your_api_key
-
-   # Option 2: Add to ~/.env file
-   echo "LUMA_API_KEY=your_api_key" >> ~/.env
-
-   # Option 3: Let the wizard guide you
-   luma-diagnostics --wizard
    ```
 
-2. Optional: Configure default test parameters in `~/.config/luma-diagnostics/settings.json`
+2. **Configuration file**:
+   - Create a file named `.env` in your home directory
+   - Add the line: `LUMA_API_KEY=your_api_key`
 
-## Available Tests
+3. **Wizard input**:
+   - The wizard will prompt you to enter your API key if needed
 
-### Basic Tests
-- URL accessibility
-- Certificate validation
-- Redirect handling
-- MIME type verification
-- Image format validation
+## 🐛 Troubleshooting Common Issues
 
-### Advanced Tests (requires API key)
-- Text-to-Image generation
-- Image-to-Image generation
-- Image-to-Video generation
+### "Command not found" error
+- Ensure Python is installed and added to your PATH
+- Try reinstalling with: `pip install --user luma-diagnostics`
+- For Windows, you might need to use: `py -m luma_diagnostics.cli`
 
-## Case Management
+### API key issues
+- Verify your API key is correct
+- Check if your API key has reached its usage limit
+- Make sure the API key is properly formatted (no extra spaces)
 
-The tool includes a case management system to track issues and test results:
+### Image processing problems
+- Ensure your image is in a supported format (JPG, PNG, WebP)
+- Check that the image size is within allowed limits
+- Verify the image URL is publicly accessible
 
-```
-cases/
-├── active/          # Active case files
-│   └── customer-case-20250122/
-│       ├── README.md
-│       ├── test_20250122_105752.json
-│       └── test_20250122_105752.txt
-└── archived/        # Archived cases
-```
+## 🆘 Getting Help
 
-## Development
+If you encounter any issues:
 
-### Setup Development Environment
+1. Run the tool with the `--test` flag to perform basic diagnostics
+2. Check the troubleshooting section above
+3. Create a case with `--create-case` to save your test results
+4. Report the issue on the [GitHub issue tracker](https://github.com/caseyfenton/luma-diagnostics/issues)
 
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+## 💬 Feedback and Contributions
 
-# Install development dependencies
-pip install -e ".[dev]"
-```
+Your feedback helps make this tool better for everyone in the LUMA community!
 
-### Running Tests
+- Report bugs or request features on the [GitHub issue tracker](https://github.com/caseyfenton/luma-diagnostics/issues)
+- Contribute to the codebase by submitting a pull request
+- Share your experiences and suggestions with the community
 
-```bash
-pytest
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/caseyfenton/luma-diagnostics/issues).
