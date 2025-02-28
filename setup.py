@@ -45,7 +45,7 @@ if os.path.exists('scripts/post_install.py'):
 
 setup(
     name="luma-diagnostics",
-    version="1.0.1",
+    version="1.0.2",
     author="Casey Fenton",
     author_email="casey@caseyfenton.com",
     description="An unofficial diagnostic tool for troubleshooting LUMA Dream Machine API issues",

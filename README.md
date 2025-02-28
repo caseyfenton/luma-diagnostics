@@ -142,7 +142,7 @@ luma-diagnostics --image /path/to/your/image.jpg --test-type full
 luma-diagnostics --help
 ```
 
-## 🆕 New in Version 1.0.1
+## 🆕 New in Version 1.0.2
 
 The latest version includes a helpful welcome message that appears when you first install and import the package. This message provides:
 

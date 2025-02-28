@@ -116,7 +116,7 @@ def main():
     # Completion message
     console.print(Panel(
         "[bold green]All demos completed![/bold green]\n\n"
-        "You've now seen the various demo modes available in LUMA Diagnostics v1.0.1.\n"
+        "You've now seen the various demo modes available in LUMA Diagnostics v1.0.2.\n"
         "These modes allow users to explore the tool's functionality without requiring API keys.",
         title="Demo Complete",
         border_style="green",

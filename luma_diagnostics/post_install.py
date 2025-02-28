@@ -16,7 +16,7 @@ def post_install_message():
         return
     
     # Create a stylish welcome panel
-    title = "[bold cyan]LUMA Diagnostics[/bold cyan] [green]v1.0.1[/green]"
+    title = "[bold cyan]LUMA Diagnostics[/bold cyan] [green]v1.0.2[/green]"
     
     welcome_text = (
         "\n[bold]Thank you for installing LUMA Diagnostics![/bold]\n\n"
