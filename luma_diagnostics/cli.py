@@ -14,6 +14,7 @@ from rich.console import Console
 from PIL import Image
 from typing import Optional
 import json
+from . import __version__
 
 console = Console()
 
@@ -93,6 +94,7 @@ def validate_image(image_path: str) -> Optional[str]:
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="LUMA Diagnostics - Test and validate LUMA API functionality")
+    parser.add_argument("--version", action="version", version=f"LUMA Diagnostics v{__version__}")
     parser.add_argument("--wizard", action="store_true", help="Run in interactive wizard mode")
     parser.add_argument("--image", help="Path to image file to test")
     parser.add_argument("--api-key", help="LUMA API key for generation tests")
