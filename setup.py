@@ -4,7 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+    requirements = [
+        "requests>=2.25.1",
+        "python-dotenv>=0.19.0",
+        "pillow>=8.3.1",  # For image validation
+        "dnspython>=2.1.0",  # For DNS lookups
+        "certifi>=2021.5.30",  # For SSL certificate validation
+        "questionary>=1.10.0",  # For interactive prompts
+        "rich>=10.6.0",  # For console output formatting
+        "psutil>=5.8.0",  # For system information collection
+    ]
 
 test_requirements = [
     "pytest>=7.0.0",
@@ -16,12 +25,15 @@ test_requirements = [
 setup(
     name="luma-diagnostics",
     version="1.0.0",
-    author="LUMA Labs",
-    author_email="support@lumalabs.ai",
-    description="A diagnostic tool for troubleshooting LUMA Dream Machine API issues",
+    author="Casey Fenton",
+    author_email="casey@caseyfenton.com",
+    description="An unofficial diagnostic tool for troubleshooting LUMA Dream Machine API issues",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/lumalabs/api-diagnostics",
+    url="https://github.com/caseyfenton/luma-diagnostics",
+    project_urls={
+        "Bug Tracker": "https://github.com/caseyfenton/luma-diagnostics/issues",
+    },
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

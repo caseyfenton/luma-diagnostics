@@ -105,15 +105,11 @@ The wizard will guide you through:
 # Run the interactive wizard (recommended for beginners)
 luma-diagnostics --wizard
 
-# Run basic diagnostic tests with your API key
-luma-diagnostics --test --api-key your_api_key
+# Test a specific image URL
+luma-diagnostics --image-url https://example.com/image.jpg --test-type basic
 
-# Test a specific image URL and your API key
-luma-diagnostics --test --image /path/to/your/image.jpg --api-key your_api_key
-
-# Use API key from environment variable
-export LUMA_API_KEY=your_api_key  # (macOS/Linux)
-luma-diagnostics --test
+# Create a case to track troubleshooting
+luma-diagnostics --create-case "My Image Issue" --case-description "Having trouble with my landscape image"
 ```
 
 ## 🔑 API Key Configuration
@@ -142,16 +138,8 @@ Your LUMA API key is **required** for all tests, including basic diagnostics. Yo
 
 4. **Wizard input**:
    - The wizard will prompt you to enter your API key if needed
-   - The wizard can also save your API key to your `.env` file for future use
-
-> **Note**: Your API key should begin with `luma_` and be at least 32 characters long.
 
 ## 🐛 Troubleshooting Common Issues
-
-### "API key is required" error
-- Make sure you've set your LUMA API key using one of the methods in the API Key Configuration section
-- Verify your API key starts with "luma_" and is at least 32 characters long
-- Check if your API key has been properly saved in your environment or .env file
 
 ### "Command not found" error
 - Ensure Python is installed and added to your PATH
@@ -174,27 +162,8 @@ If you encounter any issues:
 
 1. Run the tool with the `--test` flag to perform basic diagnostics
 2. Check the troubleshooting section above
-3. Use the `--case` parameter to specify a test case (for advanced users)
+3. Create a case with `--create-case` to save your test results
 4. Report the issue on the [GitHub issue tracker](https://github.com/caseyfenton/luma-diagnostics/issues)
-
-## 📁 Case Management
-
-The tool includes a case management system to help organize your testing results:
-
-```bash
-# Run with a specific case ID (creates if it doesn't exist)
-luma-diagnostics --case my_test_case --api-key your_api_key
-
-# Case files are stored in ~/.config/luma-diagnostics/cases/
-```
-
-Case files are organized in the following structure:
-```
-~/.config/luma-diagnostics/cases/
-├── active/          # Active case files
-├── results/         # Test results
-└── templates/       # Case templates
-```
 
 ## 💬 Feedback and Contributions
 
